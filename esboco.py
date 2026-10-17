@@ -4,10 +4,11 @@ from pathlib import Path # pra mostrar qual música é
 import time
 import threading # faz que o input não pare a contagem
 import shutil # pra ficar bonitinho no terminal
+import rich
 
 # Caminho pra poder aparecer a música atual e musica atual
 files = Path(__file__).parent / 'songs'
-mainsong = sorted(files.glob('*.mp3'))[3]
+mainsong = sorted(files.glob('*.mp3'))[5]
 
 # Tocador de música
 playback = Playback()
@@ -33,7 +34,7 @@ limite = len(titulo_base) + 3 # tamanho de UM título + os 3 espaços
 # Centralização
 largura = shutil.get_terminal_size().columns
 espacos_now = (largura - len("Now playing:")) // 2
-espacos_titulo = (largura - 14) // 2
+espacos_titulo = (largura - 14) // 2 # 14 = largura fixa da janela de rolagem
 espacos_msg = (largura - len("Pressione Enter para parar...")) // 2
 
 # como aparece no terminal:
@@ -42,44 +43,59 @@ print(f"{' ' * espacos_now}Now playing:")
 print()                                    # linha em branco 1 (título)
 print()                                    # linha em branco 2 (tempo)
 print()                                    # ← espaço entre o tempo e a msg
-print(f"{' ' * espacos_msg}Pressione Enter para parar...", end="")
-
-# Sobe 3 linhas pra ficar na região reservada
-print("\033[F\033[F\033[F", end="", flush=True)
+print(f"{' ' * espacos_msg}Pressione Enter para pausar/retomar, ou [s] sair... ", end="")
+print("\033[F\033[F\033[F", end="", flush=True)   # sobe pra região reservada
+print("\033[s", end="", flush=True)
 
 parar = False
+pausado = False
+
 def esperar_enter():
-    global parar
-    input()
-    parar = True
+    global parar, pausado
+    while True:
+        print("\033[u", end="", flush=True)
+        print("\033[E\033[E\033[E", end="", flush=True)
+        comando = input()
+        if comando.strip().lower().startswith("s"):
+            parar = True
+            break
+        else:
+            if pausado:
+                playback.resume()
+                pausado = False
+            else:
+                playback.pause()
+                pausado = True
 
 threading.Thread(target=esperar_enter, daemon=True).start()
 
+# importe pro pause não ficar esquisito
+atual = 0
+total = playback.duration
+
 try:
     while playback.active and not parar:
-    # pegando o tempo atual e total    
-        atual = playback.curr_pos
-        total = playback.duration
+        if not pausado:
+        # pegando o tempo atual e total    
+            atual = playback.curr_pos
+            total = playback.duration
+
+        # magica
+            i = (i + 1) % limite
 
         tempo_str = f"{atual:.0f}s / {total:.0f}s"
         espacos_tempo = (largura - len(tempo_str)) // 2
 
-    # Linha 1: título rolando
+        print("\033[u", end="", flush=True)
         print(f"\r{' ' * espacos_titulo}{titulo[i:i+14]}\033[K", end="", flush=True)
-
-    # Linha 2: tempo
         print(f"\n{' ' * espacos_tempo}{tempo_str}\033[K", end="", flush=True)
 
-    # Sobe uma linha pra próxima iteração
-        print(f"\033[F", end="", flush=True)
-
         time.sleep(0.5)
-        i = (i + 1) % limite
 
 except KeyboardInterrupt:
     parar = True
 
 playback.stop()
-print()
-print()
+print("\033[K", end="")   # limpa a linha atual (onde o s tava)
+print("\033[E\033[E\033[E", end="")
 print("\nAudio Encerrado\n")
