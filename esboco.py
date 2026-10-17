@@ -36,7 +36,8 @@ titulos = {
     "onceinalullaby.mp3": " Chris Christodolou - Once in a Lullaby ",
     "pentatonixattention.mp3": " Charlie Puth - Attention (Pentatonix Cover) ",
     "escalofrios.mp3": " Cataratas en Siberia - Escalofríos ",
-    "luvsic5.mp3": " Nujabes - Luv(sic) Part 5 feat.Shing02 "
+    "luvsic5.mp3": " Nujabes - Luv(sic) Part 5 feat.Shing02 ",
+    "waitingforyou.mp3": " Akira Yamaoka - Waiting for you "
 }
 
 titulo_base = titulos[mainsong.name]
@@ -70,7 +71,7 @@ def desenhar_tela():
         print(f"{' ' * esp_top}{texto_topo}")
     else:
         texto_topo = "Now playing:"
-        texto_baixo = "Pressione Enter para pausar/retomar, ou [s] sair"
+        texto_baixo = "[ < ] ❚❚ [ > ]   [s] Sair"
         esp_top = (largura - len(texto_topo)) // 2
         esp_msg = (largura - len(texto_baixo)) // 2
         
@@ -132,6 +133,44 @@ def esperar_enter():
             if comando.strip().lower().startswith("s"):
                 parar = True
                 break
+
+            elif comando == ">":
+                playback.stop()
+                indice_selecionado = (indice_selecionado + 1) % len(song_list)
+
+                mainsong = song_list[indice_selecionado]
+                playback.load_file(str(mainsong))
+                playback.play()
+            # só pro teu miolo n estourar:
+                playback.set_volume(0.1)
+
+            # atualiza a exibição
+                titulo_base = titulos[mainsong.name]
+                titulo = titulo_base + "   " + titulo_base
+                i = 0
+                limite = len(titulo_base) + 3
+                pausado = False
+
+                desenhar_tela()
+
+            elif comando == "<":
+                playback.stop()
+                indice_selecionado = (indice_selecionado - 1) % len(song_list)
+
+                mainsong = song_list[indice_selecionado]
+                playback.load_file(str(mainsong))
+                playback.play()
+            # pra tu não morrer²
+                playback.set_volume(0.1)
+
+                titulo_base = titulos[mainsong.name]
+                titulo = titulo_base + "   " + titulo_base
+                i = 0
+                limite = len(titulo_base) + 3
+                pausado = False
+                
+                desenhar_tela()
+
             else:
                 if pausado:
                     playback.resume()
