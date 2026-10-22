@@ -108,27 +108,27 @@ def input_thread():
     
     while not parar:
         try:
-            comando = input().strip().lower()
+            user_input = input().strip().lower()
         except EOFError:
             parar = True
             break
 
-        if comando == "s":
+        if user_input == "s":
             parar = True
             break
             
         if not isplaying:
-            if comando == ">":
+            if user_input == ">":
                 csi = (csi + 1) % total_songs
                 current_song_key = listed_songs_keys[csi]
                 currently_displayed = song_list[current_song_key]
                 song_enumeration = f"{csi+1}."
-            elif comando == "<":
+            elif user_input == "<":
                 csi = (csi - 1) % total_songs
                 current_song_key = listed_songs_keys[csi]
                 currently_displayed = song_list[current_song_key]
                 song_enumeration = f"{csi+1}."
-            elif comando == "":
+            elif user_input == "":
                 song_path = files / current_song_key
                 playback.load_file(str(song_path))
                 playback.play()
@@ -137,7 +137,7 @@ def input_thread():
                 isplaying = True
                 time.sleep(0.2) # do NOT remove
         else:
-            if comando == ">":
+            if user_input == ">":
                 playback.stop()
                 csi = (csi + 1) % total_songs
                 current_song_key = listed_songs_keys[csi]
@@ -149,7 +149,7 @@ def input_thread():
                 playback.set_volume(0.1)
                 i = 0
                 pause = False
-            elif comando == "<":
+            elif user_input == "<":
                 playback.stop()
                 csi = (csi - 1) % total_songs
                 current_song_key = listed_songs_keys[csi]
@@ -161,7 +161,7 @@ def input_thread():
                 playback.set_volume(0.1)
                 i = 0
                 pause = False
-            elif comando == "":
+            elif user_input == "":
                 if pause:
                     playback.resume()
                     pause = False
@@ -185,7 +185,7 @@ try:
                 dur = playback.duration
                 menu_dur_str = f"{int(dur // 60)}m {int(dur % 60)}s" 
             except:
-                menu_dur_str = "0m 0s" # Fallback de segurança
+                menu_dur_str = "0m 0s"
             
             print(boombox_menu(menu_dur_str), end='')
             print(center_alignment("") + "\033[s", end="", flush=True)
@@ -208,7 +208,6 @@ try:
 
 except KeyboardInterrupt:
     parar = True
-
 
 playback.stop()
 print("\n\nAudio Encerrado\n")
