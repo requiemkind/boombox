@@ -91,6 +91,8 @@ song_enumeration = f"{csi+1}."
 isplaying = False
 pause = False
 parar = False
+loading = False
+last_loaded_song = None
 
 playback = Playback()
 playback.set_volume(0.1) # 10% = optimal, just trust me but feel free to change
@@ -169,12 +171,20 @@ try:
         print("\033[H\033[J", end='')
 
         if not isplaying:
-            song_path = files / current_song_key
-            playback.load_file(str(song_path))
-            dur = playback.duration
-            menu_dur_time = f"{int(dur // 60)}m {int(dur % 60)}s" 
+            if not loading and last_loaded_song != current_song_key:
+                song_path = files / current_song_key
+                playback.load_file(str(song_path))
+                last_loaded_song = current_song_key
+
+            try:
+                dur = playback.duration
+                menu_dur_str = f"{int(dur // 60)}m {int(dur % 60)}s" 
+            except:
+                menu_dur_str = "0m 0s" # Fallback de segurança
             
-            print(boombox_menu(menu_dur_time), end='') 
+            print(boombox_menu(menu_dur_str), end='')
+            print(center_alignment("") + "\033[s", end="", flush=True)
+            time.sleep(0.1)
         else:
             atual = playback.curr_pos
             total = playback.duration
