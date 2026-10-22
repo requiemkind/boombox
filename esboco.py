@@ -1,11 +1,4 @@
-# ============================================
-# BOOMBOX PROJECT
-# Music player made for learning purposes.
-# Still in creating phase, this is the "test" branch after all. It will be modulized and passed into the "main" branch when the time comes.
-# Currently, play songs (Enter), switch the displayed song with "<" + Enter and vice versa. And can pause (if the music is playing) by simply pressing Enter.
-# ============================================
-
-# bibliotecas
+# libs
 from just_playback import Playback # the protagonist
 from pathlib import Path
 import shutil
@@ -101,7 +94,6 @@ last_loaded_song = None
 
 playback = Playback()
 playback.set_volume(0.1) # 10% = optimal, just trust me but feel free to change
-
 
 def input_thread():
     global parar, pause, isplaying, csi, current_song_key, currently_displayed, song_enumeration, i
@@ -209,4 +201,4 @@ def main_loop():
 main_loop()
 
 playback.stop()
-print("\n\nThanks for using Boombox Project. Hope you enjoyed it.\n")
+print("\n\nThanks for using Boombox Project. Hope you enjoyed it.\n") # :)
