@@ -1,4 +1,3 @@
-# libs
 from just_playback import Playback # the protagonist
 from pathlib import Path
 import shutil
@@ -33,13 +32,24 @@ def boombox_menu(menu_duration):
 
     return design
 
-i= 0
+scroll_pos = 0
 def title_rolling(title): # 'Mobius strip' ahh
 
-    global i
-    title_rolling = ("     " + title + "     " + title)[i : i+14]
-    i = (i + 1) % (len(title) + 5)
+    global scroll_pos
+    title_rolling = ("     " + title + "     " + title)[scroll_pos : scroll_pos+14]
+    scroll_pos = (scroll_pos + 1) % (len(title) + 5)
     return f"{center_alignment(title_rolling)}"
+
+
+def play_current_song(): # if you wanna change default song volume change 'playback.set_volume()' here
+    
+    global pause, scroll_pos
+    song_path = files / current_song_key
+    playback.load_file(str(song_path))
+    playback.play()
+    playback.set_volume(0.1) # 10% = optimal, just trust me but feel free to change
+    scroll_pos = 0 # or else you might start the switched song somewhere thats not the beginning of the song
+    pause = False
 
 
 def boombox_active(time_str, rolling_text, ispaused):
@@ -88,25 +98,24 @@ song_enumeration = f"{csi+1}."
 
 isplaying = False
 pause = False
-parar = False
-loading = False
+boombox_shutdown = False
 last_loaded_song = None
 
 playback = Playback()
-playback.set_volume(0.1) # 10% = optimal, just trust me but feel free to change
 
+# still under review for better coding if possible (75% done)
 def input_thread():
-    global parar, pause, isplaying, csi, current_song_key, currently_displayed, song_enumeration, i
+    global boombox_shutdown, pause, isplaying, csi, current_song_key, currently_displayed, song_enumeration, scroll_pos 
     
-    while not parar:
+    while not boombox_shutdown:
         try:
             user_input = input().strip().lower()
         except EOFError:
-            parar = True
+            boombox_shutdown = True
             break
 
         if user_input == "s":
-            parar = True
+            boombox_shutdown = True
             break
             
         if not isplaying:
@@ -121,12 +130,8 @@ def input_thread():
                 song_enumeration = f"{csi+1}."
 
             elif user_input == "":
-                song_path = files / current_song_key
-                playback.load_file(str(song_path))
-                playback.play()
-                playback.set_volume(0.1)
-                i = 0
                 isplaying = True
+                play_current_song()
                 time.sleep(0.2) # do NOT remove
         else:
             if user_input in [">", "<"]:
@@ -140,12 +145,7 @@ def input_thread():
                 song_enumeration = f"{csi+1}."
 
                 playback.stop()
-                song_path = files / current_song_key
-                playback.load_file(str(song_path))
-                playback.play()
-                playback.set_volume(0.1)
-                i = 0
-                pause = False
+                play_current_song()
                 
             elif user_input == "":
                 if pause:
@@ -157,15 +157,16 @@ def input_thread():
 
 threading.Thread(target=input_thread, daemon=True).start()
 
+# will stay here for now, but later will obviously be put as the final function in the "major importance functions".
 def main_loop():
-    global last_loaded_song, parar
+    global last_loaded_song, boombox_shutdown
 
     try:
-        while not parar:
+        while not boombox_shutdown:
             print("\033[H\033[J", end='')
 
             if not isplaying:
-                if not loading and last_loaded_song != current_song_key:
+                if last_loaded_song != current_song_key:
                     song_path = files / current_song_key
                     playback.load_file(str(song_path))
                     last_loaded_song = current_song_key
@@ -196,9 +197,10 @@ def main_loop():
                 time.sleep(0.5)
 
     except KeyboardInterrupt:
-        parar = True
+        boombox_shutdown = True
 
 main_loop()
 
 playback.stop()
 print("\n\nThanks for using Boombox Project. Hope you enjoyed it.\n") # :)
+
