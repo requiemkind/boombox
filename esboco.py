@@ -118,16 +118,16 @@ def input_thread():
             break
             
         if not isplaying:
-            if user_input == ">":
-                csi = (csi + 1) % total_songs
+            if user_input in [">", "<"]:
+                if user_input == ">":
+                    csi = (csi + 1) % total_songs
+                else:
+                    csi = (csi - 1) % total_songs
+            
                 current_song_key = listed_songs_keys[csi]
                 currently_displayed = song_list[current_song_key]
                 song_enumeration = f"{csi+1}."
-            elif user_input == "<":
-                csi = (csi - 1) % total_songs
-                current_song_key = listed_songs_keys[csi]
-                currently_displayed = song_list[current_song_key]
-                song_enumeration = f"{csi+1}."
+
             elif user_input == "":
                 song_path = files / current_song_key
                 playback.load_file(str(song_path))
@@ -137,30 +137,24 @@ def input_thread():
                 isplaying = True
                 time.sleep(0.2) # do NOT remove
         else:
-            if user_input == ">":
-                playback.stop()
-                csi = (csi + 1) % total_songs
+            if user_input in [">", "<"]:
+                if user_input == ">":
+                    csi = (csi + 1) % total_songs
+                else:
+                    csi = (csi - 1) % total_songs
+            
                 current_song_key = listed_songs_keys[csi]
                 currently_displayed = song_list[current_song_key]
                 song_enumeration = f"{csi+1}."
+
+                playback.stop()
                 song_path = files / current_song_key
                 playback.load_file(str(song_path))
                 playback.play()
                 playback.set_volume(0.1)
                 i = 0
                 pause = False
-            elif user_input == "<":
-                playback.stop()
-                csi = (csi - 1) % total_songs
-                current_song_key = listed_songs_keys[csi]
-                currently_displayed = song_list[current_song_key]
-                song_enumeration = f"{csi+1}."
-                song_path = files / current_song_key
-                playback.load_file(str(song_path))
-                playback.play()
-                playback.set_volume(0.1)
-                i = 0
-                pause = False
+                
             elif user_input == "":
                 if pause:
                     playback.resume()
@@ -171,43 +165,48 @@ def input_thread():
 
 threading.Thread(target=input_thread, daemon=True).start()
 
-try:
-    while not parar:
-        print("\033[H\033[J", end='')
+def main_loop():
+    global last_loaded_song, parar
 
-        if not isplaying:
-            if not loading and last_loaded_song != current_song_key:
-                song_path = files / current_song_key
-                playback.load_file(str(song_path))
-                last_loaded_song = current_song_key
+    try:
+        while not parar:
+            print("\033[H\033[J", end='')
 
-            try:
-                dur = playback.duration
-                menu_dur_str = f"{int(dur // 60)}m {int(dur % 60)}s" 
-            except:
-                menu_dur_str = "0m 0s"
-            
-            print(boombox_menu(menu_dur_str), end='')
-            print(center_alignment("") + "\033[s", end="", flush=True)
-            time.sleep(0.1)
-        else:
-            atual = playback.curr_pos
-            total = playback.duration
-            time_str = f"{atual:.0f}s / {total:.0f}s"
-            
-            if not pause:
-                # now title rolling keeps goings no matter what!
-                roll_txt = title_rolling(currently_displayed)
-            else:
-                roll_txt = title_rolling(currently_displayed)
+            if not isplaying:
+                if not loading and last_loaded_song != current_song_key:
+                    song_path = files / current_song_key
+                    playback.load_file(str(song_path))
+                    last_loaded_song = current_song_key
+
+                try:
+                    dur = playback.duration
+                    menu_dur_str = f"{int(dur // 60)}m {int(dur % 60)}s" 
+                except:
+                    menu_dur_str = "0m 0s"
                 
-            print(boombox_active(time_str, roll_txt, pause), end='')
-            print(center_alignment("") + "\033[s", end="", flush=True)
-            
-            time.sleep(0.5)
+                print(boombox_menu(menu_dur_str), end='')
+                print(center_alignment("") + "\033[s", end="", flush=True)
+                time.sleep(0.1)
+            else:
+                atual = playback.curr_pos
+                total = playback.duration
+                time_str = f"{atual:.0f}s / {total:.0f}s"
+                
+                if not pause:
+                    # now title rolling keeps goings no matter what!
+                    roll_txt = title_rolling(currently_displayed)
+                else:
+                    roll_txt = title_rolling(currently_displayed)
+                    
+                print(boombox_active(time_str, roll_txt, pause), end='')
+                print(center_alignment("") + "\033[s", end="", flush=True)
+                
+                time.sleep(0.5)
 
-except KeyboardInterrupt:
-    parar = True
+    except KeyboardInterrupt:
+        parar = True
+
+main_loop()
 
 playback.stop()
-print("\n\nAudio Encerrado\n")
+print("\n\nThanks for using Boombox Project. Hope you enjoyed it.\n")
