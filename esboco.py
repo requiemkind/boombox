@@ -49,7 +49,12 @@ def title_rolling(title): # 'Mobius strip' ahh
     return f"{center_alignment(title_rolling)}"
 
 
-def boombox_active(time_str, rolling_text):
+def boombox_active(time_str, rolling_text, ispaused):
+
+    if ispaused:
+        play_icon = "►"
+    else:
+        play_icon = "❚❚"
      
     active_design = f"""
 {menu_spacing()}
@@ -57,7 +62,7 @@ def boombox_active(time_str, rolling_text):
 {rolling_text}
 {center_alignment(time_str)}
 
-{center_alignment("[ < ] ❚❚ [ > ]")}
+{center_alignment(f"[ < ] {play_icon} [ > ]")}
 {center_alignment("[s] to stop")}
 """
 
@@ -196,7 +201,7 @@ try:
             else:
                 roll_txt = title_rolling(currently_displayed)
                 
-            print(boombox_active(time_str, roll_txt), end='')
+            print(boombox_active(time_str, roll_txt, pause), end='')
             print(center_alignment("") + "\033[s", end="", flush=True)
             
             time.sleep(0.5)
