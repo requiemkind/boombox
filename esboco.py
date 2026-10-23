@@ -42,18 +42,19 @@ def title_rolling(title): # 'Mobius strip' ahh
     return f"{center_alignment(title_rolling)}"
 
 
+current_volume = 0.1 # 10% = optimal, but feel free to change the default volume
 def play_current_song(): # if you wanna change default song volume change 'playback.set_volume()' here
     
-    global pause, scroll_pos
+    global pause, scroll_pos, current_volume
     song_path = files / current_song_key
     playback.load_file(str(song_path))
     playback.play()
-    playback.set_volume(0.1) # 10% = optimal, just trust me but feel free to change
-    scroll_pos = 0 # or else you might start the switched song somewhere thats not the beginning of the song
+    playback.set_volume(current_volume)
+    scroll_pos = 5 # 5 = skips the first 5 setback spaces
     pause = False
 
 
-def boombox_active(time_str, rolling_text, ispaused):
+def boombox_active(time_str, rolling_text, ispaused, volume):
 
     if ispaused:
         play_icon = "►"
@@ -68,15 +69,37 @@ def boombox_active(time_str, rolling_text, ispaused):
 
 {center_alignment(f"[ < ] {play_icon} [ > ]")}
 {center_alignment("[s] to stop")}
+
+{center_alignment(volume)}%
 """
 
     return active_design
+
+
+def volume_bar(vol, width=20):
+
+    total_subblocks = int(vol * width * 8)
+    full_blocks = total_subblocks // 8
+    partial_blocks = total_subblocks % 8
+
+    sub_chars = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"]
+    bar = "█" * full_blocks
+
+    if partial_blocks > 0 and full_blocks < width:
+        bar += sub_chars[partial_blocks]
+
+    empty_blocks = width - len(bar)
+    bar += "░" * empty_blocks
+
+    return f"[{bar}] {int(vol * 100)}"
+
 
 
 # alright here we go (dont mind me im organizing for the final update)
 
 # localize songs folder and all the current downloaded songs (on folder at least)
 files = Path(__file__).parent / 'songs'
+# funfact: 'Waiting for you' and 'The 89's Momentum' were friend requests ;)
 song_list = {
     "vampira.mp3": "Willyrodriguezwastaken - Vampira",
     "lupinlovinit.mp3": "Tommy Snyder - Lovin' You",
@@ -86,7 +109,8 @@ song_list = {
     "escalofrios.mp3": "Cataratas en Siberia - Escalofríos",
     "luvsic5.mp3": "Nujabes - Luv(sic) Part 5 feat.Shing02",
     "waitingforyou.mp3": "Akira Yamaoka - Waiting for you",
-    "lastdinosaur.mp3": "the pillows - LAST DINOSAUR"
+    "lastdinosaur.mp3": "the pillows - LAST DINOSAUR",
+    "the89smomentum.mp3": "MYUKKE. - The 89's Momentum"
 }
 
 
@@ -106,7 +130,7 @@ playback = Playback()
 
 # still under review for better coding if possible (75% done)
 def input_thread():
-    global boombox_shutdown, pause, isplaying, csi, current_song_key, currently_displayed, song_enumeration, scroll_pos 
+    global boombox_shutdown, pause, isplaying, csi, current_song_key, currently_displayed, song_enumeration, scroll_pos, current_volume
     
     while not boombox_shutdown:
         try:
@@ -147,6 +171,28 @@ def input_thread():
 
                 playback.stop()
                 play_current_song()
+
+            elif user_input in ["+", "-", "++", "--"]:
+                if user_input == "+":
+                    current_volume = min(1.0, current_volume + 0.1)
+                    playback.set_volume(current_volume)
+                elif user_input == "++":
+                    current_volume = min(1.0, current_volume + 0.01)
+                    playback.set_volume(current_volume)
+                elif user_input == "-":
+                    current_volume = max(0.0, current_volume - 0.1)
+                    playback.set_volume(current_volume)
+                elif user_input == "--":
+                    current_volume = max(0.0, current_volume - 0.01)
+                    playback.set_volume(current_volume)
+
+                playback.set_volume(current_volume)
+
+                if current_volume >= 1.0:
+                    print("VOLUME MÁXIMO") # teste
+                
+                elif current_volume <= 0.0:
+                    print("AUDIO JÁ MUTADO") # teste
                 
             elif user_input == "":
                 if pause:
@@ -182,18 +228,20 @@ def main_loop():
                 print(center_alignment("") + "\033[s", end="", flush=True)
                 time.sleep(0.1)
             else:
-                atual = playback.curr_pos
-                total = playback.duration
-                time_str = f"{atual:.0f}s / {total:.0f}s"
+                current_time = max(0, playback.curr_pos)
+                total_time = playback.duration
+                time_str = f"{current_time:.0f}s / {total_time:.0f}s"
                 
                 if not pause:
                     # now title rolling keeps goings no matter what!
                     roll_txt = title_rolling(currently_displayed)
                 else:
                     roll_txt = title_rolling(currently_displayed)
-                    
-                print(boombox_active(time_str, roll_txt, pause), end='')
-                print(center_alignment("") + "\033[s", end="", flush=True)
+
+                volume = volume_bar(current_volume, width = 20)
+                
+                print(boombox_active(time_str, roll_txt, pause, volume), end='')
+                print("\033[A\033[A" + center_alignment("") + "\033[s", end="", flush=True)
                 
                 time.sleep(0.5)
 
