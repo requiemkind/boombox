@@ -32,6 +32,7 @@ def boombox_menu(menu_duration):
 
     return design
 
+
 scroll_pos = 0
 def title_rolling(title): # 'Mobius strip' ahh
 
@@ -203,4 +204,3 @@ main_loop()
 
 playback.stop()
 print("\n\nThanks for using Boombox Project. Hope you enjoyed it.\n") # :)
-
