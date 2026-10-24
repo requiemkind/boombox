@@ -3,6 +3,7 @@ from pathlib import Path
 import shutil
 import time
 import threading # first time using this
+import msvcrt # for a dynamic autoplay
 import rich # W.I.P. not the current main focus
 
 # low tier importance fuctions
@@ -33,6 +34,15 @@ def boombox_menu(menu_duration):
     return design
 
 
+def format_time(seconds, total_seconds=None):
+
+    # boombox_menu() (full length of the song)
+    if total_seconds is None:
+        return f"{int(seconds // 60)}m {int(seconds % 60)}s"
+    # boombox_active() (dynamic display)
+    else:
+        return f"{int(seconds)}s / {int(total_seconds)}s"
+
 scroll_pos = 0
 def title_rolling(title): # 'Mobius strip' ahh
 
@@ -60,6 +70,11 @@ def boombox_active(time_str, rolling_text, ispaused, volume):
         play_icon = "►"
     else:
         play_icon = "❚❚"
+
+    if autoplay == False:
+        autoplaystate = "OFF"
+    else:
+        autoplaystate = "ON"
      
     active_design = f"""
 {menu_spacing()}
@@ -69,7 +84,7 @@ def boombox_active(time_str, rolling_text, ispaused, volume):
 
 {center_alignment(f"[ < ] {play_icon} [ > ]")}
 {center_alignment("[s] to stop")}
-
+{(center_alignment(center_alignment(center_alignment(f"Autoplay: {autoplaystate}"))))}
 {center_alignment(volume)}%
 """
 
@@ -125,12 +140,14 @@ isplaying = False
 pause = False
 boombox_shutdown = False
 last_loaded_song = None
+autoplay = False # Feel free to enable this to True
+next_song_requested = False # do NOT change this one though, will figure something better in the future if possible
 
 playback = Playback()
 
 # still under review for better coding if possible (75% done)
 def input_thread():
-    global boombox_shutdown, pause, isplaying, csi, current_song_key, currently_displayed, song_enumeration, scroll_pos, current_volume
+    global boombox_shutdown, pause, isplaying, csi, current_song_key, currently_displayed, song_enumeration, scroll_pos, current_volume, autoplay, next_song_requested
     
     while not boombox_shutdown:
         try:
@@ -138,6 +155,15 @@ def input_thread():
         except EOFError:
             boombox_shutdown = True
             break
+
+        if next_song_requested:
+            csi = (csi + 1) % total_songs
+            current_song_key = listed_songs_keys[csi]
+            currently_displayed = song_list[current_song_key]
+            song_enumeration = f"{csi+1}."
+            play_current_song()
+            next_song_requested = False
+            continue
 
         if user_input == "s":
             boombox_shutdown = True
@@ -188,11 +214,11 @@ def input_thread():
 
                 playback.set_volume(current_volume)
 
-                if current_volume >= 1.0:
-                    print("VOLUME MÁXIMO") # teste
-                
-                elif current_volume <= 0.0:
-                    print("AUDIO JÁ MUTADO") # teste
+            elif user_input in ["y", "n"]:
+                if user_input == "y":
+                    autoplay = True
+                elif user_input == "n":
+                    autoplay = False
                 
             elif user_input == "":
                 if pause:
@@ -206,7 +232,7 @@ threading.Thread(target=input_thread, daemon=True).start()
 
 # will stay here for now, but later will obviously be put as the final function in the "major importance functions".
 def main_loop():
-    global last_loaded_song, boombox_shutdown
+    global last_loaded_song, boombox_shutdown, next_song_requested
 
     try:
         while not boombox_shutdown:
@@ -220,7 +246,7 @@ def main_loop():
 
                 try:
                     dur = playback.duration
-                    menu_dur_str = f"{int(dur // 60)}m {int(dur % 60)}s" 
+                    menu_dur_str = format_time(dur)
                 except:
                     menu_dur_str = "0m 0s"
                 
@@ -230,7 +256,10 @@ def main_loop():
             else:
                 current_time = max(0, playback.curr_pos)
                 total_time = playback.duration
-                time_str = f"{current_time:.0f}s / {total_time:.0f}s"
+                time_str = format_time(current_time, total_time)
+
+                if autoplay and current_time >= total_time - 1:
+                    next_song_requested = True
                 
                 if not pause:
                     # now title rolling keeps goings no matter what!
