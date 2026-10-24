@@ -4,7 +4,7 @@ import shutil
 import time
 import threading # first time using this
 import msvcrt # first time too, for a dynamic autoplay
-import rich # W.I.P. not the current main focus
+import rich # W.I.P.
 
 # low tier importance fuctions
 def center_alignment(txt):
