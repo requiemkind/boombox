@@ -3,7 +3,7 @@ from pathlib import Path
 import shutil
 import time
 import threading # first time using this
-import msvcrt # for a dynamic autoplay
+import msvcrt # first time too, for a dynamic autoplay
 import rich # W.I.P. not the current main focus
 
 # low tier importance fuctions
@@ -64,7 +64,7 @@ def play_current_song(): # if you wanna change default song volume change 'playb
     pause = False
 
 
-def boombox_active(time_str, rolling_text, ispaused, volume):
+def boombox_active(time_str, rolling_text, ispaused, volume, progress):
 
     if ispaused:
         play_icon = "►"
@@ -80,6 +80,8 @@ def boombox_active(time_str, rolling_text, ispaused, volume):
 {menu_spacing()}
 {center_alignment("Now playing:")}
 {rolling_text}
+
+{center_alignment(progress)}
 {center_alignment(time_str)}
 
 {center_alignment(f"[ < ] {play_icon} [ > ]")}
@@ -109,12 +111,22 @@ def volume_bar(vol, width=20):
     return f"[{bar}] {int(vol * 100)}"
 
 
+def progress_bar(current, total, width=20):
+    
+    if total == 0:
+        return f"[{'─' * width}]"
+
+    pos = int((current / total) * (width - 1))
+    song_length = "━" * pos + "●" + "─" * (width - 1 - pos)
+
+    return f"[{song_length}]"
+
 
 # alright here we go (dont mind me im organizing for the final update)
 
 # localize songs folder and all the current downloaded songs (on folder at least)
 files = Path(__file__).parent / 'songs'
-# funfact: 'Waiting for you' and 'The 89's Momentum' were friend requests ;)
+# funfact: 'Escalofríos', 'Waiting for you' and 'The 89's Momentum' were friend requests ;)
 song_list = {
     "vampira.mp3": "Willyrodriguezwastaken - Vampira",
     "lupinlovinit.mp3": "Tommy Snyder - Lovin' You",
@@ -141,28 +153,41 @@ pause = False
 boombox_shutdown = False
 last_loaded_song = None
 autoplay = False # Feel free to enable this to True
+song_finished = False
 next_song_requested = False # do NOT change this one though, will figure something better in the future if possible
 
 playback = Playback()
 
 # still under review for better coding if possible (75% done)
 def input_thread():
-    global boombox_shutdown, pause, isplaying, csi, current_song_key, currently_displayed, song_enumeration, scroll_pos, current_volume, autoplay, next_song_requested
+    global boombox_shutdown, pause, isplaying, csi, current_song_key, currently_displayed, song_enumeration, scroll_pos, current_volume, autoplay, next_song_requested, song_finished
     
     while not boombox_shutdown:
-        try:
-            user_input = input().strip().lower()
-        except EOFError:
-            boombox_shutdown = True
-            break
+
+        if msvcrt.kbhit():
+            
+            keyboard = msvcrt.getch().decode('utf-8', errors='ignore').lower()
+
+            if keyboard == "\r":
+                user_input = ""
+            else:
+                user_input = keyboard
+        
+        else:
+            user_input = None
+
+        time.sleep(0.05)
 
         if next_song_requested:
+            next_song_requested = False
+            # time.sleep(5) # Feel free to change this as you wish (change the interval duration before the next song in autoplay)
+
             csi = (csi + 1) % total_songs
             current_song_key = listed_songs_keys[csi]
             currently_displayed = song_list[current_song_key]
             song_enumeration = f"{csi+1}."
             play_current_song()
-            next_song_requested = False
+            song_finished = False
             continue
 
         if user_input == "s":
@@ -198,17 +223,17 @@ def input_thread():
                 playback.stop()
                 play_current_song()
 
-            elif user_input in ["+", "-", "++", "--"]:
+            elif user_input in ["+", "-", "[", "]"]:
                 if user_input == "+":
                     current_volume = min(1.0, current_volume + 0.1)
                     playback.set_volume(current_volume)
-                elif user_input == "++":
+                elif user_input == "[":
                     current_volume = min(1.0, current_volume + 0.01)
                     playback.set_volume(current_volume)
                 elif user_input == "-":
                     current_volume = max(0.0, current_volume - 0.1)
                     playback.set_volume(current_volume)
-                elif user_input == "--":
+                elif user_input == "]":
                     current_volume = max(0.0, current_volume - 0.01)
                     playback.set_volume(current_volume)
 
@@ -228,11 +253,14 @@ def input_thread():
                     playback.pause()
                     pause = True
 
+        if user_input is None:
+            continue
+
 threading.Thread(target=input_thread, daemon=True).start()
 
 # will stay here for now, but later will obviously be put as the final function in the "major importance functions".
 def main_loop():
-    global last_loaded_song, boombox_shutdown, next_song_requested
+    global last_loaded_song, boombox_shutdown, next_song_requested, song_finished
 
     try:
         while not boombox_shutdown:
@@ -258,8 +286,11 @@ def main_loop():
                 total_time = playback.duration
                 time_str = format_time(current_time, total_time)
 
-                if autoplay and current_time >= total_time - 1:
+                progress = progress_bar(current_time, total_time, width=30)
+
+                if autoplay and current_time >= total_time - 1 and not song_finished:
                     next_song_requested = True
+                    song_finished = True
                 
                 if not pause:
                     # now title rolling keeps goings no matter what!
@@ -269,7 +300,7 @@ def main_loop():
 
                 volume = volume_bar(current_volume, width = 20)
                 
-                print(boombox_active(time_str, roll_txt, pause, volume), end='')
+                print(boombox_active(time_str, roll_txt, pause, volume, progress), end='')
                 print("\033[A\033[A" + center_alignment("") + "\033[s", end="", flush=True)
                 
                 time.sleep(0.5)
@@ -280,4 +311,5 @@ def main_loop():
 main_loop()
 
 playback.stop()
+print("\n")
 print("\n\nThanks for using Boombox Project. Hope you enjoyed it.\n") # :)
