@@ -122,8 +122,14 @@ def load_songs():
         listed_songs_keys.append(display_name)
 
 
+last_skip_time = 0
 def skip_song(direction):
-    global song_index, currently_displayed, song_enumeration
+    global song_index, currently_displayed, song_enumeration, last_skip_time
+
+    if time.time() - last_skip_time < 0.3:
+        return
+
+    last_skip_time = time.time()
 
     song_index = (song_index + direction) % total_songs
     currently_displayed = listed_songs_keys[song_index]
@@ -174,15 +180,7 @@ def play_current_song(): # if you wanna change default song volume change 'playb
     global pause, scroll_pos, current_volume
 
     display_name = listed_songs_keys[song_index]
-    file_name = None
-
-    for key, value in custom_titles.items():
-        if value == display_name:
-            file_name = key
-            break
-
-    if file_name is None:
-        file_name = f"{display_name}.mp3"
+    file_name = get_songname(display_name)
 
     song_path = files / file_name
     playback.load_file(str(song_path))
@@ -269,7 +267,6 @@ def toggle_pause():
 load_songs()
 total_songs = len(listed_songs_keys)
 song_index = 0
-current_song_key = listed_songs_keys[song_index]
 currently_displayed = listed_songs_keys[song_index]
 song_enumeration = f"{song_index+1}."
 
@@ -285,12 +282,11 @@ playback = Playback()
 
 # still under review for better coding if possible
 def input_thread():
-    global boombox_shutdown, pause, isplaying, song_index, current_song_key, currently_displayed, song_enumeration, scroll_pos, current_volume, autoplay, next_song_requested, song_finished
+    global boombox_shutdown, pause, isplaying, song_index, currently_displayed, song_enumeration, scroll_pos, current_volume, autoplay, next_song_requested, song_finished
     
     while not boombox_shutdown:
 
         if msvcrt.kbhit():
-            
             keyboard = msvcrt.getch().decode('utf-8', errors='ignore').lower()
 
             if keyboard == "\r":
@@ -305,7 +301,7 @@ def input_thread():
 
         if next_song_requested:
             next_song_requested = False
-            time.sleep(1.5) # Feel free to change this as you wish (change the interval duration before the next song in autoplay)
+            time.sleep(1.5) # changes the interval duration before the next song in autoplay
             skip_song(1)
             song_finished = False
             continue
@@ -317,25 +313,14 @@ def input_thread():
         if user_input is None:
             continue
             
-        if not isplaying:
-            if user_input in [">", "<"]:
-                if user_input == ">":
-                    skip_song(1)
-                else:
-                    skip_song(-1)
+        if user_input in [">", "<"]:
+            if user_input == ">":
+                skip_song(1)
+            else:
+                skip_song(-1)
             
-            elif user_input == "":
-                isplaying = True
-                play_current_song()
-                time.sleep(0.2) # do NOT remove
-        else:
-            if user_input in [">", "<"]:
-                if user_input == ">":
-                    skip_song(1)
-                else:
-                    skip_song(-1)
-
-            elif user_input in ["+", "-", "[", "]"]:
+        elif isplaying:
+            if user_input in ["+", "-", "[", "]"]:
                 if user_input == "+":
                     adjust_volume(1, 0.1)
                 elif user_input == "-":
@@ -350,6 +335,11 @@ def input_thread():
                     
             elif user_input == "":
                 toggle_pause()
+
+        elif user_input == "":
+            isplaying = True
+            play_current_song()
+            time.sleep(0.2)
 
 
 threading.Thread(target=input_thread, daemon=True).start()
