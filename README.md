@@ -16,4 +16,4 @@ Controls:
 This is currently a Work in Progress, being developed on "test" branch. Once I add everything I belive it's important for the Boombox Project complete release, it will be merged into the 'main' branch for the official release.
 
 Site used to download all the mp3's: https://en.loader.to/4/
-Just follow the pattern on the "song_list" dictionary and you're good.
+Just add your .mp3 files to the 'songs' folder and update the 'songs.json' file for custom display names.
