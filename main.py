@@ -4,6 +4,8 @@ import shutil
 import time
 import threading
 import msvcrt
+import json
+import os
 # import rich # W.I.P.
 
 # low tier importance fuctions
@@ -14,21 +16,96 @@ def center_alignment(txt):
     return txt
 
 def menu_spacing():
-    return f"\n" * 3
+    return f"\n"
 
 # major importance functions
+files = Path(__file__).parent / 'songs'
+def render_interface():
+    global last_loaded_song, next_song_requested, song_finished
+
+    if not isplaying:
+        display_name = listed_songs_keys[current_song_index]
+        file_name = None
+
+        for key, value in custom_titles.items():
+            if value == display_name:
+                file_name = key
+                break
+        if file_name is None:
+            file_name = f"{display_name}.mp3"
+
+        if last_loaded_song != file_name:
+            song_path = files / file_name
+            playback.load_file((str(song_path)))
+            last_loaded_song = file_name
+
+        try:
+            dur = playback.duration
+            menu_dur_str = format_time(dur)
+        except:
+            menu_dur_str = "0m 0s"
+
+        print(boombox_menu(menu_dur_str), end='')
+        print(center_alignment("") + "\033[s", end='', flush=True)
+
+    else:
+        current_time = max(0, playback.curr_pos)
+        total_time = playback.duration
+        time_str = format_time(current_time, total_time)
+
+        progress = progress_bar(current_time, total_time, width=30)
+
+        if autoplay and current_time >= total_time - 1 and not song_finished:
+            next_song_requested = True
+            song_finished = True
+
+        roll_txt = title_rolling(currently_displayed)
+
+        volume = volume_bar(current_volume, width=20)
+
+        print(boombox_active(time_str, roll_txt, pause, volume, progress), end='')
+        print("\033[2A\033[G" + center_alignment("") + "\033[s", end='', flush=True)
+
+
+def load_songs():
+    global listed_songs_keys, custom_titles, total_songs
+
+    json_file = Path(__file__).parent / 'songs.json'
+
+    if os.path.exists(json_file):
+        with open(json_file, 'r', encoding='utf-8') as file:
+            custom_titles = json.load(file)
+    else:
+        custom_titles = {}
+
+    song_files = sorted(files.glob('*.mp3'))
+
+
+    listed_songs_keys = []
+    for file in song_files:
+        display_name = custom_titles.get(file.name, file.stem)
+        listed_songs_keys.append(display_name)
+
+
+def skip_song(direction):
+    global current_song_index, currently_displayed, song_enumeration
+
+    current_song_index = (current_song_index + direction) % total_songs
+    currently_displayed = listed_songs_keys[current_song_index]
+    song_enumeration = f"{current_song_index+1}."
+
 
 def boombox_menu(menu_duration):
 
     # terminal design needs this space, not even joking
     design = f"""
-{menu_spacing()}
-{center_alignment(f"Select your track (total: {total_songs}):")}
-{center_alignment(f"{song_enumeration} {currently_displayed.strip()}")}
-{center_alignment(menu_duration)}
+{menu_spacing()}\033[K
+{center_alignment(f"Select your track (total: {total_songs}):")}\033[K
+{center_alignment(f"{song_enumeration} {currently_displayed.strip()}")}\033[K
+{center_alignment(menu_duration)}\033[K
 
-{center_alignment("[ < ] [Enter] [ > ]")}
-{center_alignment("[s] to stop")}
+{center_alignment("[ < ] [Enter] [ > ]")}\033[K
+{center_alignment("[s] to stop")}\033[K
 """
 
     return design
@@ -56,7 +133,19 @@ current_volume = 0.1 # 10% = optimal, but feel free to change the default volume
 def play_current_song(): # if you wanna change default song volume change 'playback.set_volume()' here
     
     global pause, scroll_pos, current_volume
-    song_path = files / current_song_key
+
+    display_name = listed_songs_keys[current_song_index]
+    file_name = None
+
+    for key, value in custom_titles.items():
+        if value == display_name:
+            file_name = key
+            break
+
+    if file_name is None:
+        file_name = f"{display_name}.mp3"
+
+    song_path = files / file_name
     playback.load_file(str(song_path))
     playback.play()
     playback.set_volume(current_volume)
@@ -77,17 +166,17 @@ def boombox_active(time_str, rolling_text, ispaused, volume, progress):
         autoplaystate = "ON"
      
     active_design = f"""
-{menu_spacing()}
-{center_alignment("Now playing:")}
-{rolling_text}
+{menu_spacing()}\033[K
+{center_alignment("Now playing:")}\033[K
+{rolling_text}\033[K
 
-{center_alignment(progress)}
-{center_alignment(time_str)}
+{center_alignment(progress)}\033[K
+{center_alignment(time_str)}\033[K
 
-{center_alignment(f"[ < ] {play_icon} [ > ]")}
-{center_alignment("[s] to stop")}
-{(center_alignment(center_alignment(center_alignment(f"Autoplay: {autoplaystate}"))))}
-{center_alignment(volume)}%
+{center_alignment(f"[ < ] {play_icon} [ > ]")}\033[K
+{center_alignment("[s] to stop")}\033[K
+{(center_alignment(center_alignment(center_alignment(f"Autoplay: {autoplaystate}"))))}\033[K
+{center_alignment(volume)}%\033[K
 """
 
     return active_design
@@ -124,29 +213,13 @@ def progress_bar(current, total, width=20):
 
 # alright here we go (dont mind me im organizing for the final update)
 
-# localize songs folder and all the current downloaded songs (on folder at least)
-files = Path(__file__).parent / 'songs'
-# funfact: 'Escalofríos', 'Waiting for you' and 'The 89's Momentum' were friend requests ;)
-song_list = {
-    "vampira.mp3": "Willyrodriguezwastaken - Vampira",
-    "lupinlovinit.mp3": "Tommy Snyder - Lovin' You",
-    "luvsic2acoustica.mp3": "Nujabes - Luv(sic) Part 2 feat.Shing02 Acoustica",
-    "onceinalullaby.mp3": "Chris Christodolou - Once in a Lullaby",
-    "pentatonixattention.mp3": "Charlie Puth - Attention (Pentatonix Cover)",
-    "escalofrios.mp3": "Cataratas en Siberia - Escalofríos",
-    "luvsic5.mp3": "Nujabes - Luv(sic) Part 5 feat.Shing02",
-    "waitingforyou.mp3": "Akira Yamaoka - Waiting for you",
-    "lastdinosaur.mp3": "the pillows - LAST DINOSAUR",
-    "the89smomentum.mp3": "MYUKKE. - The 89's Momentum"
-}
 
-
-listed_songs_keys = sorted(list(song_list))
-total_songs = len(song_list)
-csi = 0 # current song/title index
-current_song_key = listed_songs_keys[csi]
-currently_displayed = song_list[current_song_key]
-song_enumeration = f"{csi+1}."
+load_songs()
+total_songs = len(listed_songs_keys)
+current_song_index = 0
+current_song_key = listed_songs_keys[current_song_index]
+currently_displayed = listed_songs_keys[current_song_index]
+song_enumeration = f"{current_song_index+1}."
 
 isplaying = False
 pause = False
@@ -160,7 +233,7 @@ playback = Playback()
 
 # still under review for better coding if possible (75% done)
 def input_thread():
-    global boombox_shutdown, pause, isplaying, csi, current_song_key, currently_displayed, song_enumeration, scroll_pos, current_volume, autoplay, next_song_requested, song_finished
+    global boombox_shutdown, pause, isplaying, current_song_index, current_song_key, currently_displayed, song_enumeration, scroll_pos, current_volume, autoplay, next_song_requested, song_finished
     
     while not boombox_shutdown:
 
@@ -182,10 +255,7 @@ def input_thread():
             next_song_requested = False
             time.sleep(1.5) # Feel free to change this as you wish (change the interval duration before the next song in autoplay)
 
-            csi = (csi + 1) % total_songs
-            current_song_key = listed_songs_keys[csi]
-            currently_displayed = song_list[current_song_key]
-            song_enumeration = f"{csi+1}."
+            skip_song(1)
             play_current_song()
             song_finished = False
             continue
@@ -193,18 +263,17 @@ def input_thread():
         if user_input == "s":
             boombox_shutdown = True
             break
+
+        if user_input is None:
+            continue
             
         if not isplaying:
             if user_input in [">", "<"]:
                 if user_input == ">":
-                    csi = (csi + 1) % total_songs
+                    skip_song(1)
                 else:
-                    csi = (csi - 1) % total_songs
+                    skip_song(-1)
             
-                current_song_key = listed_songs_keys[csi]
-                currently_displayed = song_list[current_song_key]
-                song_enumeration = f"{csi+1}."
-
             elif user_input == "":
                 isplaying = True
                 play_current_song()
@@ -212,31 +281,21 @@ def input_thread():
         else:
             if user_input in [">", "<"]:
                 if user_input == ">":
-                    csi = (csi + 1) % total_songs
+                    skip_song(1)
                 else:
-                    csi = (csi - 1) % total_songs
-            
-                current_song_key = listed_songs_keys[csi]
-                currently_displayed = song_list[current_song_key]
-                song_enumeration = f"{csi+1}."
-
+                    skip_song(-1)
                 playback.stop()
                 play_current_song()
 
             elif user_input in ["+", "-", "[", "]"]:
                 if user_input == "+":
                     current_volume = min(1.0, current_volume + 0.1)
-                    playback.set_volume(current_volume)
                 elif user_input == "[":
                     current_volume = min(1.0, current_volume + 0.01)
-                    playback.set_volume(current_volume)
                 elif user_input == "-":
                     current_volume = max(0.0, current_volume - 0.1)
-                    playback.set_volume(current_volume)
                 elif user_input == "]":
                     current_volume = max(0.0, current_volume - 0.01)
-                    playback.set_volume(current_volume)
-
                 playback.set_volume(current_volume)
 
             elif user_input in ["y", "n"]:
@@ -244,7 +303,7 @@ def input_thread():
                     autoplay = True
                 elif user_input == "n":
                     autoplay = False
-                
+                    
             elif user_input == "":
                 if pause:
                     playback.resume()
@@ -253,56 +312,23 @@ def input_thread():
                     playback.pause()
                     pause = True
 
-        if user_input is None:
-            continue
 
 threading.Thread(target=input_thread, daemon=True).start()
 
 # will stay here for now, but later will obviously be put as the final function in the "major importance functions".
 def main_loop():
-    global last_loaded_song, boombox_shutdown, next_song_requested, song_finished
+    global boombox_shutdown
 
     try:
         while not boombox_shutdown:
             print("\033[H\033[J", end='')
+            render_interface()
+            print("\033[u", end='', flush=True)
 
             if not isplaying:
-                if last_loaded_song != current_song_key:
-                    song_path = files / current_song_key
-                    playback.load_file(str(song_path))
-                    last_loaded_song = current_song_key
-
-                try:
-                    dur = playback.duration
-                    menu_dur_str = format_time(dur)
-                except:
-                    menu_dur_str = "0m 0s"
-                
-                print(boombox_menu(menu_dur_str), end='')
-                print(center_alignment("") + "\033[s", end="", flush=True)
                 time.sleep(0.1)
-            else:
-                current_time = max(0, playback.curr_pos)
-                total_time = playback.duration
-                time_str = format_time(current_time, total_time)
 
-                progress = progress_bar(current_time, total_time, width=30)
-
-                if autoplay and current_time >= total_time - 1 and not song_finished:
-                    next_song_requested = True
-                    song_finished = True
-                
-                if not pause:
-                    # now title rolling keeps goings no matter what!
-                    roll_txt = title_rolling(currently_displayed)
-                else:
-                    roll_txt = title_rolling(currently_displayed)
-
-                volume = volume_bar(current_volume, width = 20)
-                
-                print(boombox_active(time_str, roll_txt, pause, volume, progress), end='')
-                print("\033[A\033[A" + center_alignment("") + "\033[s", end="", flush=True)
-                
+            else:       
                 time.sleep(0.5)
 
     except KeyboardInterrupt:
