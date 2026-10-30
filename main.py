@@ -3,6 +3,7 @@ from pathlib import Path
 import shutil
 import time
 import threading
+import queue
 import msvcrt
 import json
 import os
@@ -77,17 +78,15 @@ def update_player_metrics():
 
 files = Path(__file__).parent / 'songs'
 def render_interface():
-    global last_loaded_song, next_song_requested, song_finished
+    global next_song_requested
 
     if not isplaying:
-
         load_duration()
 
         print(boombox_menu(menu_duration_str), end='')
         print(center_alignment("") + "\033[s", end='', flush=True)
 
     else:
-
         update_player_metrics()
         check_autoplay()
 
@@ -122,21 +121,15 @@ def load_songs():
         listed_songs_keys.append(display_name)
 
 
-last_skip_time = 0
 def skip_song(direction):
-    global song_index, currently_displayed, song_enumeration, last_skip_time
-
-    if time.time() - last_skip_time < 0.3:
-        return
-
-    last_skip_time = time.time()
+    global song_index, currently_displayed, song_enumeration
 
     song_index = (song_index + direction) % total_songs
     currently_displayed = listed_songs_keys[song_index]
     song_enumeration = f"{song_index+1}."
 
     if isplaying:
-        playback.stop()
+        play_queue.put("STOP")
         play_current_song()
 
 
@@ -177,17 +170,10 @@ def title_rolling(title): # 'Mobius strip' ahh
 
 current_volume = 0.1 # 10% = optimal, but feel free to change the default volume
 def play_current_song(): # if you wanna change default song volume change 'playback.set_volume()' here
-    global pause, scroll_pos, current_volume
 
     display_name = listed_songs_keys[song_index]
-    file_name = get_songname(display_name)
+    play_queue.put(get_songname(display_name))
 
-    song_path = files / file_name
-    playback.load_file(str(song_path))
-    playback.play()
-    playback.set_volume(current_volume)
-    scroll_pos = 5 # 5 = skips the first 5 setback spaces
-    pause = False
 
 
 def boombox_active(time_str, rolling_text, ispaused, volume, progress):
@@ -279,10 +265,33 @@ song_finished = False
 next_song_requested = False # do NOT change this one though, will figure something better in the future if possible
 
 playback = Playback()
+play_queue = queue.Queue()
+
+def audio_thread():
+    global boombox_shutdown, scroll_pos, current_volume, last_loaded_song
+
+    while not boombox_shutdown:
+        try:
+            file_name = play_queue.get(timeout=0.5)
+
+            if file_name == "STOP":
+                playback.stop()
+                continue
+
+            song_path = files / file_name
+            playback.load_file(str(song_path))
+            playback.play()
+            playback.set_volume(current_volume)
+            scroll_pos = 5
+            last_loaded_song = file_name
+
+        except queue.Empty:
+            pass
+
 
 # still under review for better coding if possible
 def input_thread():
-    global boombox_shutdown, pause, isplaying, song_index, currently_displayed, song_enumeration, scroll_pos, current_volume, autoplay, next_song_requested, song_finished
+    global boombox_shutdown, pause, isplaying, song_index, currently_displayed, song_enumeration, autoplay, next_song_requested
     
     while not boombox_shutdown:
 
@@ -303,11 +312,11 @@ def input_thread():
             next_song_requested = False
             time.sleep(1.5) # changes the interval duration before the next song in autoplay
             skip_song(1)
-            song_finished = False
             continue
 
         if user_input == "s":
             boombox_shutdown = True
+            play_queue.put("STOP")
             break
 
         if user_input is None:
@@ -343,6 +352,7 @@ def input_thread():
 
 
 threading.Thread(target=input_thread, daemon=True).start()
+threading.Thread(target=audio_thread, daemon=True).start()
 
 def main_loop():
     global boombox_shutdown
