@@ -98,7 +98,7 @@ def adjust_volume(direction, step):
     global current_volume
 
     current_volume = max(0.0, min(1.0, current_volume + (direction * step)))
-    playback.set_volume(current_volume)
+    play_queue.put(("VOLUME", current_volume))
 
 
 def load_songs():
@@ -129,7 +129,6 @@ def skip_song(direction):
     song_enumeration = f"{song_index+1}."
 
     if isplaying:
-        play_queue.put("STOP")
         play_current_song()
 
 
@@ -159,7 +158,7 @@ def format_time(seconds, total_seconds=None):
         return f"{int(seconds)}s / {int(total_seconds)}s"
 
 
-scroll_pos = 0
+scroll_pos = 5
 def title_rolling(title): # 'Mobius strip' ahh
 
     global scroll_pos
@@ -170,10 +169,12 @@ def title_rolling(title): # 'Mobius strip' ahh
 
 current_volume = 0.1 # 10% = optimal, but feel free to change the default volume
 def play_current_song(): # if you wanna change default song volume change 'playback.set_volume()' here
+    global scroll_pos
 
+    scroll_pos = 5
     display_name = listed_songs_keys[song_index]
-    play_queue.put(get_songname(display_name))
-
+    file_name = get_songname(display_name)
+    play_queue.put(("PLAY", file_name))
 
 
 def boombox_active(time_str, rolling_text, ispaused, volume, progress):
@@ -239,17 +240,6 @@ def change_autoplay(state):
     autoplay = state
 
 
-def toggle_pause():
-    global pause
-    if pause:
-        playback.resume()
-        pause = False
-    else:
-        playback.pause()
-        pause = True
-
-
-
 load_songs()
 total_songs = len(listed_songs_keys)
 song_index = 0
@@ -268,22 +258,36 @@ playback = Playback()
 play_queue = queue.Queue()
 
 def audio_thread():
-    global boombox_shutdown, scroll_pos, current_volume, last_loaded_song
+    global boombox_shutdown, scroll_pos, current_volume, last_loaded_song, pause
 
     while not boombox_shutdown:
         try:
-            file_name = play_queue.get(timeout=0.5)
+            order, value = play_queue.get(timeout=0.5)
 
-            if file_name == "STOP":
-                playback.stop()
-                continue
+            match order:
+                case "PLAY":
+                    song_path = files / value
+                    playback.load_file(str(song_path))
+                    playback.play()
+                    playback.set_volume(current_volume)
+                    pause = False
+                    scroll_pos = 5
+                    last_loaded_song = value
 
-            song_path = files / file_name
-            playback.load_file(str(song_path))
-            playback.play()
-            playback.set_volume(current_volume)
-            scroll_pos = 5
-            last_loaded_song = file_name
+                case "PAUSE":
+                    playback.pause()
+                    pause = True
+
+                case "RESUME":
+                    playback.resume()
+                    pause = False
+
+                case "VOLUME":
+                    current_volume = value
+                    playback.set_volume(current_volume)
+
+                case "STOP":
+                    playback.stop()
 
         except queue.Empty:
             pass
@@ -316,7 +320,7 @@ def input_thread():
 
         if user_input == "s":
             boombox_shutdown = True
-            play_queue.put("STOP")
+            play_queue.put(("STOP", None))
             break
 
         if user_input is None:
@@ -343,7 +347,10 @@ def input_thread():
                 change_autoplay(user_input == "y")
                     
             elif user_input == "":
-                toggle_pause()
+                if pause:
+                    play_queue.put(("RESUME", None))
+                else:
+                    play_queue.put(("PAUSE", None))
 
         elif user_input == "":
             isplaying = True
