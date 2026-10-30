@@ -53,13 +53,13 @@ def load_duration():
 
 
 def check_autoplay():
-    global next_song_requested, song_finished
+    global song_finished
 
     current_time = max(0, playback.curr_pos)
     total_time = playback.duration
 
     if autoplay and current_time >= total_time -1 and not song_finished:
-        next_song_requested = True
+        play_queue.put(("AUTOPLAY", None))
         song_finished = True
 
 
@@ -78,7 +78,6 @@ def update_player_metrics():
 
 files = Path(__file__).parent / 'songs'
 def render_interface():
-    global next_song_requested
 
     if not isplaying:
         load_duration()
@@ -252,13 +251,12 @@ boombox_shutdown = False
 last_loaded_song = None
 autoplay = False # Feel free to enable this to True
 song_finished = False
-next_song_requested = False # do NOT change this one though, will figure something better in the future if possible
 
 playback = Playback()
 play_queue = queue.Queue()
 
 def audio_thread():
-    global boombox_shutdown, scroll_pos, current_volume, last_loaded_song, pause
+    global boombox_shutdown, scroll_pos, current_volume, last_loaded_song, pause, song_finished
 
     while not boombox_shutdown:
         try:
@@ -286,6 +284,11 @@ def audio_thread():
                     current_volume = value
                     playback.set_volume(current_volume)
 
+                case "AUTOPLAY":
+                    time.sleep(1.5)
+                    skip_song(1)
+                    song_finished = False
+
                 case "STOP":
                     playback.stop()
 
@@ -295,7 +298,7 @@ def audio_thread():
 
 # still under review for better coding if possible
 def input_thread():
-    global boombox_shutdown, pause, isplaying, song_index, currently_displayed, song_enumeration, autoplay, next_song_requested
+    global boombox_shutdown, pause, isplaying, song_index, currently_displayed, song_enumeration, autoplay
     
     while not boombox_shutdown:
 
@@ -311,12 +314,6 @@ def input_thread():
             user_input = None
 
         time.sleep(0.05)
-
-        if next_song_requested:
-            next_song_requested = False
-            time.sleep(1.5) # changes the interval duration before the next song in autoplay
-            skip_song(1)
-            continue
 
         if user_input == "s":
             boombox_shutdown = True
