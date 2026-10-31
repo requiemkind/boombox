@@ -33,25 +33,6 @@ def get_songname(display_name):
     return file_name
 
 
-def load_duration():
-    global menu_duration_str, last_loaded_song
-
-    display_name = listed_songs_keys[selected_index]
-    file_name = get_songname(display_name)
-
-    if last_loaded_song != file_name:
-        song_path = files / file_name
-        playback.load_file(str(song_path))
-        last_loaded_song = file_name
-
-        try:
-            dur = playback.duration
-            menu_duration_str = format_time(dur)
-        
-        except:
-            menu_duration_str = "0m 0s"
-
-
 def check_autoplay():
     global song_finished
 
@@ -80,7 +61,6 @@ files = Path(__file__).parent / 'songs'
 def render_interface():
 
     if not isplaying:
-        load_duration()
 
         print(boombox_menu(menu_duration_str), end='')
         print(center_alignment("") + "\033[s", end='', flush=True)
@@ -120,24 +100,40 @@ def load_songs():
         listed_songs_keys.append(display_name)
 
 
+def load_menu_song():
+    global menu_duration_str
+
+    file_name = get_songname(listed_songs_keys[selected_index])
+    song_path = files / file_name
+
+    playback.load_file(str(song_path))
+
+    try:
+        dur = playback.duration
+        menu_duration_str = format_time(dur)
+
+    except:
+        menu_duration_str = "0m 0s"
+
+
 def skip_song(direction):
-    global selected_index, currently_displayed, song_enumeration
+    global selected_index
 
     selected_index = (selected_index + direction) % total_songs
-    currently_displayed = listed_songs_keys[selected_index]
-    song_enumeration = f"{selected_index+1}."
 
     if isplaying:
         play_current_song()
 
 
 def boombox_menu(menu_duration):
+    song_name = listed_songs_keys[selected_index]
+    order = f"{selected_index + 1}."
 
 
     design = f"""
 {menu_spacing()}\033[K
 {center_alignment(f"Select your track (total: {total_songs}):")}\033[K
-{center_alignment(f"{song_enumeration} {currently_displayed.strip()}")}\033[K
+{center_alignment(f"{order} {song_name.strip()}")}\033[K
 {center_alignment(menu_duration)}\033[K
 
 {center_alignment("[ < ] [Enter] [ > ]")}\033[K
@@ -168,11 +164,15 @@ def title_rolling(title): # 'Mobius strip' ahh
 
 current_volume = 0.1 # 10% = optimal, but feel free to change the default volume
 def play_current_song(): # if you wanna change default song volume change 'playback.set_volume()' here
-    global scroll_pos
+    global scroll_pos, playing_displayed, pause
 
     scroll_pos = 5
     display_name = listed_songs_keys[selected_index]
     file_name = get_songname(display_name)
+
+    playing_displayed = display_name
+    pause = False
+
     play_queue.put(("PLAY", (file_name, selected_index)))
 
 
@@ -277,23 +277,19 @@ def process_input(user_input):
 load_songs()
 total_songs = len(listed_songs_keys)
 selected_index = 0
-currently_displayed = listed_songs_keys[selected_index]
-song_enumeration = f"{selected_index+1}."
-playing_index = 0
 playing_displayed = ""
 
 isplaying = False
 pause = False
 boombox_shutdown = False
-last_loaded_song = None
-autoplay = False # Feel free to enable this to True
+autoplay = False
 song_finished = False
 
 playback = Playback()
 play_queue = queue.Queue()
 
 def audio_thread():
-    global boombox_shutdown, scroll_pos, current_volume, last_loaded_song, pause, song_finished, playing_index, playing_displayed, file_name
+    global boombox_shutdown, scroll_pos, current_volume, pause, song_finished, playing_displayed
 
     while not boombox_shutdown:
         try:
@@ -308,8 +304,6 @@ def audio_thread():
                     playback.set_volume(current_volume)
                     pause = False
                     scroll_pos = 5
-                    last_loaded_song = file_name
-                    playing_displayed = listed_songs_keys[i]
 
                 case "PAUSE":
                     playback.pause()
@@ -336,7 +330,7 @@ def audio_thread():
 
 
 def input_thread():
-    global boombox_shutdown, pause, isplaying, selected_index, currently_displayed, song_enumeration, autoplay
+    global boombox_shutdown, pause, isplaying, autoplay
     
     while not boombox_shutdown:
 
@@ -369,9 +363,13 @@ threading.Thread(target=audio_thread, daemon=True).start()
 
 def main_loop():
     global boombox_shutdown
+    last_menu_index = -1
 
     try:
         while not boombox_shutdown:
+            if not isplaying and last_menu_index != selected_index:
+                load_menu_song()
+                last_menu_index = selected_index
             print("\033[H\033[J", end='')
             render_interface()
             print("\033[u", end='', flush=True)
