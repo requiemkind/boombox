@@ -76,8 +76,8 @@ def render_interface():
 def adjust_volume(direction, step):
     global current_volume
 
-    current_volume = max(0.0, min(1.0, current_volume + (direction * step)))
-    play_queue.put(("VOLUME", current_volume))
+    change_volume = max(0.0, min(1.0, current_volume + (direction * step)))
+    play_queue.put(("VOLUME", change_volume))
 
 
 def load_songs():
@@ -303,7 +303,7 @@ def audio_thread():
 
             match order:
                 case "PLAY":
-                    file_name, i = value
+                    file_name, _ = value
                     song_path = files / file_name
                     playback.load_file(str(song_path))
                     playback.play()
@@ -323,9 +323,11 @@ def audio_thread():
                     playback.set_volume(current_volume)
 
                 case "AUTOPLAY":
-                    time.sleep(1.5)
-                    skip_song(1)
+                    time.sleep(1.5) # autoplay interval
+                    global selected_index
+                    selected_index = (selected_index + 1) % total_songs
                     song_finished = False
+                    play_current_song()
 
                 case "STOP":
                     playback.stop()
