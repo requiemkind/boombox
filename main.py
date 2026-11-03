@@ -247,6 +247,9 @@ def process_input(user_input):
             skip_song(1)
         else:
             skip_song(-1)
+
+        if not isplaying:
+            load_menu_song()
                 
     elif isplaying:
         if user_input in ["+", "-", "[", "]"]:
@@ -278,6 +281,7 @@ load_songs()
 total_songs = len(listed_songs_keys)
 selected_index = 0
 playing_displayed = ""
+menu_duration_str = "0m 0s"
 
 isplaying = False
 pause = False
@@ -288,8 +292,10 @@ song_finished = False
 playback = Playback()
 play_queue = queue.Queue()
 
+load_menu_song()
+
 def audio_thread():
-    global boombox_shutdown, scroll_pos, current_volume, pause, song_finished, playing_displayed
+    global boombox_shutdown, current_volume, pause, song_finished, playing_displayed
 
     while not boombox_shutdown:
         try:
@@ -303,7 +309,6 @@ def audio_thread():
                     playback.play()
                     playback.set_volume(current_volume)
                     pause = False
-                    scroll_pos = 5
 
                 case "PAUSE":
                     playback.pause()
@@ -358,18 +363,16 @@ def input_thread():
         process_input(user_input)  
 
 
-threading.Thread(target=input_thread, daemon=True).start()
-threading.Thread(target=audio_thread, daemon=True).start()
+t_input = threading.Thread(target=input_thread, daemon=True)
+t_audio = threading.Thread(target=audio_thread, daemon=True)
+t_input.start()
+t_audio.start()
 
 def main_loop():
     global boombox_shutdown
-    last_menu_index = -1
 
     try:
         while not boombox_shutdown:
-            if not isplaying and last_menu_index != selected_index:
-                load_menu_song()
-                last_menu_index = selected_index
             print("\033[H\033[J", end='')
             render_interface()
             print("\033[u", end='', flush=True)
@@ -378,13 +381,17 @@ def main_loop():
                 time.sleep(0.1)
 
             else:       
-                time.sleep(0.5)
+                time.sleep(0.5) # title rolling speed
 
     except KeyboardInterrupt:
         boombox_shutdown = True
 
 
 main_loop()
+
+play_queue.put(("STOP", None))
+t_input.join(timeout=1.0)
+t_audio.join(timeout=1.0)
 
 playback.stop()
 print("\n")
