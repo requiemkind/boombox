@@ -1,7 +1,14 @@
 @echo off
+
+if not exist ".venv" (
+    python -m venv .venv
+)
+
 echo Downloading Boombox dependencies...
-python -m pip install -r requirements.txt
+".venv\Scripts\python.exe" python -m pip install -r requirements.txt
+
 echo.
 echo Initializing...
-python main.py
+".venv\Scripts\python.exe"python main.py
+
 pause

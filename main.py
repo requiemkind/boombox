@@ -76,8 +76,8 @@ def render_interface():
 def adjust_volume(direction, step):
     global current_volume
 
-    change_volume = max(0.0, min(1.0, current_volume + (direction * step)))
-    play_queue.put(("VOLUME", change_volume))
+    current_volume = max(0.0, min(1.0, current_volume + (direction * step)))
+    play_queue.put(("VOLUME", current_volume))
 
 
 def load_songs():
@@ -103,17 +103,9 @@ def load_songs():
 def load_menu_song():
     global menu_duration_str
 
+    menu_duration_str = "..."
     file_name = get_songname(listed_songs_keys[selected_index])
-    song_path = files / file_name
-
-    playback.load_file(str(song_path))
-
-    try:
-        dur = playback.duration
-        menu_duration_str = format_time(dur)
-
-    except:
-        menu_duration_str = "0m 0s"
+    play_queue.put(("LOAD_MENU", file_name))
 
 
 def skip_song(direction):
@@ -240,7 +232,7 @@ def change_autoplay(state):
 
 
 def process_input(user_input):
-    global isplaying, pause
+    global isplaying
 
     if user_input in [">", "<"]:
         if user_input == ">":
@@ -266,10 +258,7 @@ def process_input(user_input):
             change_autoplay(user_input == "y")
                         
         elif user_input == "":
-            if pause:
-                play_queue.put(("RESUME", None))
-            else:
-                play_queue.put(("PAUSE", None))
+            play_queue.put(("TOGGLE_PAUSE", None))
     
     elif user_input == "":
         isplaying = True
@@ -279,6 +268,11 @@ def process_input(user_input):
 
 load_songs()
 total_songs = len(listed_songs_keys)
+
+if total_songs == 0:
+    print("Empty Boombox! ('songs' folder is empty)")
+    os._exit(0)
+
 selected_index = 0
 playing_displayed = ""
 menu_duration_str = "0m 0s"
@@ -292,12 +286,10 @@ song_finished = False
 playback = Playback()
 play_queue = queue.Queue()
 
-load_menu_song()
-
 def audio_thread():
-    global boombox_shutdown, current_volume, pause, song_finished, playing_displayed
+    global pause, song_finished, selected_index, menu_duration_str
 
-    while not boombox_shutdown:
+    while True:
         try:
             order, value = play_queue.get(timeout=0.5)
 
@@ -310,17 +302,16 @@ def audio_thread():
                     playback.set_volume(current_volume)
                     pause = False
 
-                case "PAUSE":
-                    playback.pause()
-                    pause = True
-
-                case "RESUME":
-                    playback.resume()
-                    pause = False
+                case "TOGGLE_PAUSE":
+                    if pause:
+                        playback.resume()
+                        pause = False
+                    else:
+                        playback.pause()
+                        pause = True
 
                 case "VOLUME":
-                    current_volume = value
-                    playback.set_volume(current_volume)
+                    playback.set_volume(value)
 
                 case "AUTOPLAY":
                     time.sleep(1.5) # autoplay interval
@@ -329,15 +320,29 @@ def audio_thread():
                     song_finished = False
                     play_current_song()
 
+                case "LOAD_MENU":
+                    global menu_duration_str
+                    song_path = files / value
+                    playback.load_file(str(song_path))
+                      
+                    try:
+                        dur = playback.duration
+                        menu_duration_str = format_time(dur)
+                    
+                    except Exception as e:
+                        print(f"Error reading duration: {e}")
+                        menu_duration_str = "0m 0s"
+
                 case "STOP":
                     playback.stop()
+                    break
 
         except queue.Empty:
             pass
 
 
 def input_thread():
-    global boombox_shutdown, pause, isplaying, autoplay
+    global boombox_shutdown
     
     while not boombox_shutdown:
 
@@ -356,19 +361,20 @@ def input_thread():
 
         if user_input == "s":
             boombox_shutdown = True
-            play_queue.put(("STOP", None))
             break
 
         if user_input is None:
             continue
 
-        process_input(user_input)  
+        process_input(user_input)
 
 
 t_input = threading.Thread(target=input_thread, daemon=True)
 t_audio = threading.Thread(target=audio_thread, daemon=True)
 t_input.start()
 t_audio.start()
+
+load_menu_song()
 
 def main_loop():
     global boombox_shutdown
@@ -392,9 +398,9 @@ def main_loop():
 main_loop()
 
 play_queue.put(("STOP", None))
-t_input.join(timeout=1.0)
-t_audio.join(timeout=1.0)
 
-playback.stop()
+t_input.join()
+t_audio.join()
+
 print("\n")
 print("\n\nThanks for using Boombox Project. Hope you enjoyed it.\n") # :)
