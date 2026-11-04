@@ -283,6 +283,8 @@ boombox_shutdown = False
 autoplay = False
 song_finished = False
 
+interface_error = ""
+
 playback = Playback()
 play_queue = queue.Queue()
 
@@ -330,7 +332,8 @@ def audio_thread():
                         menu_duration_str = format_time(dur)
                     
                     except Exception as e:
-                        print(f"Error reading duration: {e}")
+                        global interface_error
+                        interface_error = e
                         menu_duration_str = "0m 0s"
 
                 case "STOP":
