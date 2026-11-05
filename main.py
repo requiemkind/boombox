@@ -247,8 +247,8 @@ def change_autoplay(state):
 def process_input(user_input):
     global isplaying
 
-    if user_input in [">", "<"]:
-        if user_input == ">":
+    if user_input in [">", ".", "<", ","]:
+        if user_input in [">", "."]:
             skip_song(1)
         else:
             skip_song(-1)
@@ -257,8 +257,8 @@ def process_input(user_input):
             load_menu_song()
                 
     elif isplaying:
-        if user_input in ["+", "-", "[", "]"]:
-            if user_input == "+":
+        if user_input in ["+", "=", "-", "[", "]"]:
+            if user_input in ["+", "="]:
                 adjust_volume(1, 0.1)
             elif user_input == "-":
                 adjust_volume(-1, 0.1)
@@ -413,6 +413,7 @@ def main_loop():
         boombox_shutdown = True
 
 
+os.system("cls")
 main_loop()
 
 play_queue.put(("STOP", None))

@@ -9,8 +9,8 @@ Since this project uses 'Just Playback', make sure you're on Python 3.9 or newer
 Controls:
 
 - Enter: Play songs. If a song is already playing, it pauses.
-- "<" or ">": Switches the currently displayed song. If a song is playing, immediately starts the next song.
-- "+", "[", "-", "]": Increase volume by 10%, 1%, and vice versa for "-" and "]".
+- "<", ">" (or "," , "."): Switches the currently displayed song. If a song is playing, immediately starts the next song.
+- "+" (or "="), "[", "-", "]": Increase volume by 10%, 1%, and vice versa for "-" and "]".
 - "y" to enable autoplay ('False' by default), and "n" for turning off.
 
 This is currently a Work in Progress, being developed on "test" branch. Once I add everything I belive it's important for the Boombox Project complete release, it will be merged into the 'main' branch for the official release.
