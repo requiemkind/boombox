@@ -18,10 +18,6 @@ def center_alignment(txt):
     return txt
 
 
-def menu_spacing():
-    return f"\n"
-
-
 def get_songname(display_name):
     file_name = None
     
@@ -62,13 +58,14 @@ files = Path(__file__).parent / 'songs'
 def render_interface():
 
     if not isplaying:
-        print(boombox_menu(menu_duration_str), end='')
+        return boombox_menu(menu_duration_str)
 
-    else:
-        update_player_metrics()
-        check_autoplay()
+    update_player_metrics()
+    check_autoplay()
 
-        print(boombox_active(time_str, roll_txt, pause, volume), end='')
+    bar_str = progress_bar(playback.curr_pos, playback.duration)
+
+    return boombox_active(time_str, roll_txt, pause, volume, bar_str)
 
 
 def adjust_volume(direction, step):
@@ -121,7 +118,7 @@ def boombox_menu(menu_duration):
 
 
     design = f"""
-{menu_spacing()}
+
 {center_alignment(f"Select your track (total: {total_songs}):")}
 {center_alignment(f"{order} {song_name.strip()}")}
 {center_alignment(menu_duration)}
@@ -153,7 +150,7 @@ def title_rolling(title): # 'Mobius strip' ahh
 
 
 current_volume = 0.1 # 10% = optimal, but feel free to change the default volume
-def play_current_song(): # if you wanna change default song volume change 'playback.set_volume()' here
+def play_current_song():
     global scroll_pos, playing_displayed, pause
 
     scroll_pos = 5
@@ -179,7 +176,7 @@ def boombox_active(time_str, rolling_text, ispaused, volume, bar_str):
         autoplaystate = "ON"
      
     active_design = f"""
-{menu_spacing()}
+
 {center_alignment("Now playing:")}
 {rolling_text}
 
@@ -298,10 +295,6 @@ pause = False
 boombox_shutdown = False
 autoplay = False
 song_finished = False
-rich_progress = None
-rich_task = None
-
-interface_error = "" # in case of rare erros
 
 playback = Playback()
 play_queue = queue.Queue()
@@ -349,9 +342,7 @@ def audio_thread():
                         dur = playback.duration
                         menu_duration_str = format_time(dur)
                     
-                    except Exception as e:
-                        global interface_error
-                        interface_error = e
+                    except Exception:
                         menu_duration_str = "0m 0s"
 
                 case "STOP":
@@ -408,16 +399,11 @@ def main_loop():
 
             while not boombox_shutdown:
                 
-                if not isplaying:
-                    cursor_saved = update_live(live, boombox_menu(menu_duration_str), False, cursor_saved)
-                    time.sleep(0.1)
+                design = render_interface()
 
-                else:       
-                    update_player_metrics()
-                    check_autoplay()
-                    bar_str = progress_bar(playback.curr_pos,playback.duration)
-                    cursor_saved = update_live(live, boombox_active(time_str, roll_txt, pause, volume, bar_str), True, cursor_saved)
-                    time.sleep(0.5) # title rolling speed
+                cursor_saved = update_live(live, design, isplaying, cursor_saved)
+
+                time.sleep(0.1 if not isplaying else 0.5)
 
             if cursor_saved:
                 live.console.file.write("\033[u")
