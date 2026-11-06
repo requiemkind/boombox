@@ -7,7 +7,6 @@ import queue
 import msvcrt
 import json
 import os
-# import rich # W.I.P.
 
 def center_alignment(txt):
     fullsize_x = shutil.get_terminal_size().columns
@@ -16,21 +15,8 @@ def center_alignment(txt):
     return txt
 
 
-def menu_spacing():
-    return f"\n"
-
-
-def get_songname(display_name):
-    file_name = None
-    
-    for key, value in custom_titles.items():
-        if value == display_name:
-            file_name = key
-            break
-    if file_name is None:
-        file_name = f"{display_name}.mp3"
-
-    return file_name
+def get_songname(index):
+    return listed_songs_files[index]
 
 
 def check_autoplay():
@@ -39,7 +25,7 @@ def check_autoplay():
     current_time = max(0, playback.curr_pos)
     total_time = playback.duration
 
-    if autoplay and current_time >= total_time -1 and not song_finished:
+    if autoplay and not pause and current_time >= total_time -1 and not song_finished:
         play_queue.put(("AUTOPLAY", None))
         song_finished = True
 
@@ -81,7 +67,7 @@ def adjust_volume(direction, step):
 
 
 def load_songs():
-    global listed_songs_keys, custom_titles, total_songs
+    global listed_songs_keys, listed_songs_files, custom_titles, total_songs
 
     json_file = Path(__file__).parent / 'songs.json'
 
@@ -95,16 +81,19 @@ def load_songs():
 
 
     listed_songs_keys = []
+    listed_songs_files = []
+
     for file in song_files:
         display_name = custom_titles.get(file.name, file.stem)
         listed_songs_keys.append(display_name)
+        listed_songs_files.append(file.name)
 
 
 def load_menu_song():
     global menu_duration_str
 
     menu_duration_str = "..."
-    file_name = get_songname(listed_songs_keys[selected_index])
+    file_name = get_songname(selected_index)
     play_queue.put(("LOAD_MENU", file_name))
 
 
@@ -123,7 +112,7 @@ def boombox_menu(menu_duration):
 
 
     design = f"""
-{menu_spacing()}\033[K
+
 {center_alignment(f"Select your track (total: {total_songs}):")}\033[K
 {center_alignment(f"{order} {song_name.strip()}")}\033[K
 {center_alignment(menu_duration)}\033[K
@@ -137,10 +126,10 @@ def boombox_menu(menu_duration):
 
 def format_time(seconds, total_seconds=None):
 
-    # boombox_menu() (full length of the song)
+    # boombox_menu()
     if total_seconds is None:
         return f"{int(seconds // 60)}m {int(seconds % 60)}s"
-    # boombox_active() (dynamic display)
+    # boombox_active()
     else:
         return f"{int(seconds)}s / {int(total_seconds)}s"
 
@@ -155,15 +144,16 @@ def title_rolling(title): # 'Mobius strip' ahh
 
 
 current_volume = 0.1 # 10% = optimal, but feel free to change the default volume
-def play_current_song(): # if you wanna change default song volume change 'playback.set_volume()' here
-    global scroll_pos, playing_displayed, pause
+def play_current_song():
+    global scroll_pos, playing_displayed, pause, song_finished
 
     scroll_pos = 5
     display_name = listed_songs_keys[selected_index]
-    file_name = get_songname(display_name)
+    file_name = get_songname(selected_index)
 
     playing_displayed = display_name
     pause = False
+    song_finished = False
 
     play_queue.put(("PLAY", (file_name, selected_index)))
 
@@ -181,7 +171,7 @@ def boombox_active(time_str, rolling_text, ispaused, volume, progress):
         autoplaystate = "ON"
      
     active_design = f"""
-{menu_spacing()}\033[K
+
 {center_alignment("Now playing:")}\033[K
 {rolling_text}\033[K
 
@@ -234,8 +224,8 @@ def change_autoplay(state):
 def process_input(user_input):
     global isplaying
 
-    if user_input in [">", "<"]:
-        if user_input == ">":
+    if user_input in [">", "<", ",", "."]:
+        if user_input in [">", "."]:
             skip_song(1)
         else:
             skip_song(-1)
@@ -244,8 +234,8 @@ def process_input(user_input):
             load_menu_song()
                 
     elif isplaying:
-        if user_input in ["+", "-", "[", "]"]:
-            if user_input == "+":
+        if user_input in ["+", "=", "-", "[", "]"]:
+            if user_input in ["+", "="]:
                 adjust_volume(1, 0.1)
             elif user_input == "-":
                 adjust_volume(-1, 0.1)
@@ -312,13 +302,6 @@ def audio_thread():
 
                 case "VOLUME":
                     playback.set_volume(value)
-
-                case "AUTOPLAY":
-                    time.sleep(1.5) # autoplay interval
-                    global selected_index
-                    selected_index = (selected_index + 1) % total_songs
-                    song_finished = False
-                    play_current_song()
 
                 case "LOAD_MENU":
                     global menu_duration_str
@@ -403,4 +386,4 @@ t_input.join()
 t_audio.join()
 
 print("\n")
-print("\n\nThanks for using Boombox Project. Hope you enjoyed it.\n") # :)
+print("\n\nThanks for using Boombox Project. Hope you enjoyed it.") # :)
