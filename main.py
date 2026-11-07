@@ -319,8 +319,7 @@ def audio_thread():
                         dur = playback.duration
                         menu_duration_str = format_time(dur)
                     
-                    except Exception as e:
-                        print(f"Error reading duration: {e}")
+                    except Exception:
                         menu_duration_str = "0m 0s"
 
                 case "STOP":
