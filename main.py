@@ -135,7 +135,7 @@ def format_time(seconds, total_seconds=None):
 
 
 scroll_pos = 5
-def title_rolling(title): # 'Mobius strip' ahh
+def title_rolling(title): # 'Mobius strip' logic
 
     global scroll_pos
     title_rolling = ("     " + title + "     " + title)[scroll_pos : scroll_pos+14]
