@@ -16,7 +16,7 @@ Controls:
 This is currently a Work in Progress, being developed on "test" branch. Once I add everything I belive it's important for the Boombox Project complete release, it will be merged into the 'main' branch for the official release.
 
 Ways to download the mp3's:
-- [loader.to](https://en.loader.to/4/). Used in the first stages of the project.
+- [loader.to](https://en.loader.to/4/), used in the first stages of the project.
 - [MusicDownloader](https://github.com/FelipeSelhorst/MusicDownloader), a separate project created by a friend, that works along with the Boombox.
 
 Just add your .mp3 files to the 'songs' folder and update the 'songs.json' file for custom display names.
