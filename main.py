@@ -98,12 +98,7 @@ def load_menu_song():
 
 
 def skip_song(direction):
-    global selected_index
-
-    selected_index = (selected_index + direction) % total_songs
-
-    if isplaying:
-        play_current_song()
+    play_queue.put(("SKIP", direction))
 
 
 def boombox_menu(menu_duration):
@@ -143,7 +138,8 @@ def title_rolling(title): # 'Mobius strip' logic
     return f"{center_alignment(title_rolling)}"
 
 
-current_volume = 0.1 # 10% = optimal, but feel free to change the default volume
+autoplay_interval = 1.5 # autoplay interval
+current_volume = 0.1 # optimal (10%)
 def play_current_song():
     global scroll_pos, playing_displayed, pause, song_finished
 
@@ -229,9 +225,6 @@ def process_input(user_input):
             skip_song(1)
         else:
             skip_song(-1)
-
-        if not isplaying:
-            load_menu_song()
                 
     elif isplaying:
         if user_input in ["+", "=", "-", "[", "]"]:
@@ -278,10 +271,22 @@ play_queue = queue.Queue()
 
 def audio_thread():
     global pause, song_finished, selected_index, menu_duration_str
+    autoplay_deadline = None
 
     while True:
+        if autoplay_deadline is not None and time.monotonic() >= autoplay_deadline:
+            autoplay_deadline = None
+            selected_index = (selected_index + 1) % total_songs
+            song_finished = False
+            play_current_song()
+
         try:
-            order, value = play_queue.get(timeout=0.5)
+            timeout = 0.5
+            if autoplay_deadline is not None:
+                remaining = autoplay_deadline - time.monotonic()
+                timeout = min(timeout, max(0, remaining))
+
+            order, value = play_queue.get(timeout=timeout)
 
             match order:
                 case "PLAY":
@@ -291,6 +296,7 @@ def audio_thread():
                     playback.play()
                     playback.set_volume(current_volume)
                     pause = False
+                    autoplay_deadline = None
 
                 case "TOGGLE_PAUSE":
                     if pause:
@@ -300,15 +306,19 @@ def audio_thread():
                         playback.pause()
                         pause = True
 
+                case "SKIP":
+                    selected_index = (selected_index + value) % total_songs
+
+                    if isplaying:
+                        play_current_song()
+                    else:
+                        load_menu_song()
+
                 case "VOLUME":
                     playback.set_volume(value)
 
                 case "AUTOPLAY":
-                    time.sleep(1.5) # autoplay interval
-                    global selected_index
-                    selected_index = (selected_index + 1) % total_songs
-                    song_finished = False
-                    play_current_song()
+                    autoplay_deadline = time.monotonic() + autoplay_interval
 
                 case "LOAD_MENU":
                     global menu_duration_str
