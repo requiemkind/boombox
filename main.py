@@ -303,6 +303,13 @@ def audio_thread():
                 case "VOLUME":
                     playback.set_volume(value)
 
+                case "AUTOPLAY":
+                    time.sleep(1.5) # autoplay interval
+                    global selected_index
+                    selected_index = (selected_index + 1) % total_songs
+                    song_finished = False
+                    play_current_song()
+
                 case "LOAD_MENU":
                     global menu_duration_str
                     song_path = files / value
