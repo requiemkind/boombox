@@ -6,6 +6,8 @@ DISCLAIMER: ALL songs included in this project are present solely because this c
 
 Since this project uses 'Just Playback', make sure you're on Python 3.9 or newer. If you have it, double click on "start.bat" to download requirements.
 
+- To add custom titles for songs in the json file, follow the order: {"[songfilename].mp3": "song name display"}. Author - Song or vice versa is not obrigatory in the 'song name display' part.
+
 Controls:
 
 - Enter: Play songs. If a song is already playing, it pauses.

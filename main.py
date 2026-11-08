@@ -1,13 +1,26 @@
 from just_playback import Playback
 from pathlib import Path
-import shutil
-import time
-import threading
-import queue
-import msvcrt
-import json
-import os
+import shutil, time, threading, queue, msvcrt, json, os
 
+files = Path(__file__).parent / 'songs'
+playback = Playback()
+play_queue = queue.Queue()
+
+isplaying = False
+pause = False
+boombox_shutdown = False
+autoplay = False
+song_finished = False
+
+selected_index = 0
+current_volume = 0.1 # optimal (10%)
+scroll_pos = 5
+autoplay_interval = 1.5 # autoplay interval
+
+playing_displayed = ""
+menu_duration_str = "0m 0s"
+
+# utilities functions
 def center_alignment(txt):
     fullsize_x = shutil.get_terminal_size().columns
     txt_alignment = (fullsize_x - len(txt)) // 2
@@ -19,33 +32,95 @@ def get_songname(index):
     return listed_songs_files[index]
 
 
-def check_autoplay():
-    global song_finished
-
-    current_time = max(0, playback.curr_pos)
-    total_time = playback.duration
-
-    if autoplay and not pause and current_time >= total_time -1 and not song_finished:
-        play_queue.put(("AUTOPLAY", None))
-        song_finished = True
+def format_time(seconds, total_seconds=None):
+    # boombox_menu()
+    if total_seconds is None:
+        return f"{int(seconds // 60)}m {int(seconds % 60)}s"
+    # boombox_active()
+    else:
+        return f"{int(seconds)}s / {int(total_seconds)}s"
 
 
-def update_player_metrics():
-    global time_str, progress, roll_txt, volume, playing_displayed
+def progress_bar(current, total, width=20):  
+    if total == 0:
+        return f"[{'─' * width}]"
 
-    # music duration
-    current_time = max(0, playback.curr_pos)
-    total_time = playback.duration
-    time_str = format_time(current_time, total_time)
+    pos = int((current / total) * (width - 1))
+    song_length = "━" * pos + "●" + "─" * (width - 1 - pos)
 
-    progress = progress_bar(current_time, total_time, width=30)
-    roll_txt = title_rolling(playing_displayed)
-    volume = volume_bar(current_volume, width=20)
+    return f"[{song_length}]"   
 
 
-files = Path(__file__).parent / 'songs'
+def volume_bar(vol, width=20):
+    total_subblocks = int(vol * width * 8)
+    full_blocks = total_subblocks // 8
+    partial_blocks = total_subblocks % 8
+
+    sub_chars = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"]
+    bar = "█" * full_blocks
+
+    if partial_blocks > 0 and full_blocks < width:
+        bar += sub_chars[partial_blocks]
+
+    empty_blocks = width - len(bar)
+    bar += "░" * empty_blocks
+
+    return f"[{bar}] {int(vol * 100)}"
+
+# interface functions
+def title_rolling(title): # 'Mobius strip' logic
+    global scroll_pos
+    title_rolling = ("     " + title + "     " + title)[scroll_pos : scroll_pos+14]
+    scroll_pos = (scroll_pos + 1) % (len(title) + 5)
+    return f"{center_alignment(title_rolling)}"
+
+
+def boombox_menu(menu_duration):
+    song_name = listed_songs_keys[selected_index]
+    order = f"{selected_index + 1}."
+
+    design = f"""
+
+{center_alignment(f"Select your track (total: {total_songs}):")}\033[K
+{center_alignment(f"{order} {song_name.strip()}")}\033[K
+{center_alignment(menu_duration)}\033[K
+
+{center_alignment("[ < ] [Enter] [ > ]")}\033[K
+{center_alignment("[s] to stop")}\033[K
+"""
+
+    return design
+
+
+def boombox_active(time_str, rolling_text, ispaused, volume, progress):
+    if ispaused:
+        play_icon = " ► "
+    else:
+        play_icon = "❚❚ "
+
+    if autoplay == False:
+        autoplaystate = "OFF"
+    else:
+        autoplaystate = "ON"
+     
+    active_design = f"""
+
+{center_alignment("Now playing:")}\033[K
+{rolling_text}\033[K
+
+{center_alignment(progress)}\033[K
+{center_alignment(time_str)}\033[K
+
+{center_alignment(f"[ < ]  {play_icon} [ > ]")}\033[K
+{center_alignment("[s] to stop")}\033[K
+{(center_alignment(center_alignment(center_alignment(f"Autoplay: {autoplaystate}"))))}\033[K
+{center_alignment(volume)}%\033[K
+"""
+
+    return active_design
+
+
 def render_interface():
-
     if not isplaying:
 
         print(boombox_menu(menu_duration_str), end='')
@@ -58,12 +133,23 @@ def render_interface():
         print(boombox_active(time_str, roll_txt, pause, volume, progress), end='')
         print("\033[2A\033[G" + center_alignment("") + "\033[s", end='', flush=True)
 
+# player logic functions
+def play_current_song():
+    global scroll_pos, playing_displayed, pause, song_finished
 
-def adjust_volume(direction, step):
-    global current_volume
+    scroll_pos = 5
+    display_name = listed_songs_keys[selected_index]
+    file_name = get_songname(selected_index)
 
-    current_volume = max(0.0, min(1.0, current_volume + (direction * step)))
-    play_queue.put(("VOLUME", current_volume))
+    playing_displayed = display_name
+    pause = False
+    song_finished = False
+
+    play_queue.put(("PLAY", (file_name, selected_index)))
+
+
+def skip_song(direction):
+    play_queue.put(("SKIP", direction))
 
 
 def load_songs():
@@ -97,119 +183,11 @@ def load_menu_song():
     play_queue.put(("LOAD_MENU", file_name))
 
 
-def skip_song(direction):
-    play_queue.put(("SKIP", direction))
+def adjust_volume(direction, step):
+    global current_volume
 
-
-def boombox_menu(menu_duration):
-    song_name = listed_songs_keys[selected_index]
-    order = f"{selected_index + 1}."
-
-
-    design = f"""
-
-{center_alignment(f"Select your track (total: {total_songs}):")}\033[K
-{center_alignment(f"{order} {song_name.strip()}")}\033[K
-{center_alignment(menu_duration)}\033[K
-
-{center_alignment("[ < ] [Enter] [ > ]")}\033[K
-{center_alignment("[s] to stop")}\033[K
-"""
-
-    return design
-
-
-def format_time(seconds, total_seconds=None):
-
-    # boombox_menu()
-    if total_seconds is None:
-        return f"{int(seconds // 60)}m {int(seconds % 60)}s"
-    # boombox_active()
-    else:
-        return f"{int(seconds)}s / {int(total_seconds)}s"
-
-
-scroll_pos = 5
-def title_rolling(title): # 'Mobius strip' logic
-
-    global scroll_pos
-    title_rolling = ("     " + title + "     " + title)[scroll_pos : scroll_pos+14]
-    scroll_pos = (scroll_pos + 1) % (len(title) + 5)
-    return f"{center_alignment(title_rolling)}"
-
-
-autoplay_interval = 1.5 # autoplay interval
-current_volume = 0.1 # optimal (10%)
-def play_current_song():
-    global scroll_pos, playing_displayed, pause, song_finished
-
-    scroll_pos = 5
-    display_name = listed_songs_keys[selected_index]
-    file_name = get_songname(selected_index)
-
-    playing_displayed = display_name
-    pause = False
-    song_finished = False
-
-    play_queue.put(("PLAY", (file_name, selected_index)))
-
-
-def boombox_active(time_str, rolling_text, ispaused, volume, progress):
-
-    if ispaused:
-        play_icon = " ► "
-    else:
-        play_icon = "❚❚ "
-
-    if autoplay == False:
-        autoplaystate = "OFF"
-    else:
-        autoplaystate = "ON"
-     
-    active_design = f"""
-
-{center_alignment("Now playing:")}\033[K
-{rolling_text}\033[K
-
-{center_alignment(progress)}\033[K
-{center_alignment(time_str)}\033[K
-
-{center_alignment(f"[ < ]  {play_icon} [ > ]")}\033[K
-{center_alignment("[s] to stop")}\033[K
-{(center_alignment(center_alignment(center_alignment(f"Autoplay: {autoplaystate}"))))}\033[K
-{center_alignment(volume)}%\033[K
-"""
-
-    return active_design
-
-
-def volume_bar(vol, width=20):
-
-    total_subblocks = int(vol * width * 8)
-    full_blocks = total_subblocks // 8
-    partial_blocks = total_subblocks % 8
-
-    sub_chars = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"]
-    bar = "█" * full_blocks
-
-    if partial_blocks > 0 and full_blocks < width:
-        bar += sub_chars[partial_blocks]
-
-    empty_blocks = width - len(bar)
-    bar += "░" * empty_blocks
-
-    return f"[{bar}] {int(vol * 100)}"
-
-
-def progress_bar(current, total, width=20):
-    
-    if total == 0:
-        return f"[{'─' * width}]"
-
-    pos = int((current / total) * (width - 1))
-    song_length = "━" * pos + "●" + "─" * (width - 1 - pos)
-
-    return f"[{song_length}]"
+    current_volume = max(0.0, min(1.0, current_volume + (direction * step)))
+    play_queue.put(("VOLUME", current_volume))
 
 
 def change_autoplay(state):
@@ -249,26 +227,30 @@ def process_input(user_input):
         time.sleep(0.2)
 
 
-load_songs()
-total_songs = len(listed_songs_keys)
+def check_autoplay():
+    global song_finished
 
-if total_songs == 0:
-    print("Empty Boombox! ('songs' folder is empty)")
-    os._exit(0)
+    current_time = max(0, playback.curr_pos)
+    total_time = playback.duration
 
-selected_index = 0
-playing_displayed = ""
-menu_duration_str = "0m 0s"
+    if autoplay and not pause and current_time >= total_time -1 and not song_finished:
+        play_queue.put(("AUTOPLAY", None))
+        song_finished = True
 
-isplaying = False
-pause = False
-boombox_shutdown = False
-autoplay = False
-song_finished = False
 
-playback = Playback()
-play_queue = queue.Queue()
+def update_player_metrics():
+    global time_str, progress, roll_txt, volume, playing_displayed
 
+    # music duration
+    current_time = max(0, playback.curr_pos)
+    total_time = playback.duration
+    time_str = format_time(current_time, total_time)
+
+    progress = progress_bar(current_time, total_time, width=30)
+    roll_txt = title_rolling(playing_displayed)
+    volume = volume_bar(current_volume, width=20)
+
+# threads
 def audio_thread():
     global pause, song_finished, selected_index, menu_duration_str
     autoplay_deadline = None
@@ -367,14 +349,7 @@ def input_thread():
 
         process_input(user_input)
 
-
-t_input = threading.Thread(target=input_thread, daemon=True)
-t_audio = threading.Thread(target=audio_thread, daemon=True)
-t_input.start()
-t_audio.start()
-
-load_menu_song()
-
+# main
 def main_loop():
     global boombox_shutdown
 
@@ -393,13 +368,26 @@ def main_loop():
     except KeyboardInterrupt:
         boombox_shutdown = True
 
+# program execution part
+load_songs()
 
+total_songs = len(listed_songs_keys)
+if total_songs == 0:
+    print("Empty Boombox! ('songs' folder is empty)")
+    os._exit(0)
+
+t_input = threading.Thread(target=input_thread, daemon=True)
+t_audio = threading.Thread(target=audio_thread, daemon=True)
+t_input.start()
+t_audio.start()
+
+load_menu_song()
 main_loop()
 
 play_queue.put(("STOP", None))
-
 t_input.join()
 t_audio.join()
 
 print("\n")
-print("\n\nThanks for using Boombox Project. Hope you enjoyed it.") # :)
+if total_songs > 0:
+    print("\n\nThank you for using Boombox Project. Hope you enjoyed it.") # :)
