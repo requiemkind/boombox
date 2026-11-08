@@ -133,6 +133,23 @@ def render_interface():
         print(boombox_active(time_str, roll_txt, pause, volume, progress), end='')
         print("\033[2A\033[G" + center_alignment("") + "\033[s", end='', flush=True)
 
+
+def boombox():
+    print(r"""
+    _________________________
+   /                         \
+  |  _______________________  |
+  | |  | | | | | | | | | |  | |
+  | |  |_|_|_|_|_|_|_|_|_|  | |
+  | |_______________________| |
+  |                           |
+  |  (o)   [=====]   (o)      |
+  |  (o)             (o)      |
+  |___________________________|
+      |                   |
+      |___________________|
+    """)
+
 # player logic functions
 def play_current_song():
     global scroll_pos, playing_displayed, pause, song_finished
