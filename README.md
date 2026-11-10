@@ -11,7 +11,7 @@ Since this project uses '[Just Playback](https://github.com/cheofusi/just_playba
 Controls:
 
 - Enter: Play songs. If a song is already playing, it pauses.
-- "<", ">" (or "," , "."): Switches the currently displayed song. If a song is playing, immediately starts the next song.
+- "<", ">" (or "," , ".", arrow keys to said direction also works): Switches the currently displayed song. If a song is playing, immediately starts the next song.
 - "+" (or "="), "[", "-", "]": Increase volume by 10%, 1%, and vice versa for "-" and "]".
 - "y" to enable autoplay ('False' by default), and "n" for turning off.
 

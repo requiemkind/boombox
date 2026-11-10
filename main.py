@@ -134,7 +134,7 @@ def render_interface():
         print("\033[2A\033[G" + center_alignment("") + "\033[s", end='', flush=True)
 
 
-def boombox():
+def boombox(): # W.I.P.
     print(r"""
     _________________________
    /                         \
@@ -345,13 +345,24 @@ def input_thread():
     while not boombox_shutdown:
 
         if msvcrt.kbhit():
-            keyboard = msvcrt.getch().decode('utf-8', errors='ignore').lower()
+            keyboard = msvcrt.getch()
 
-            if keyboard == "\r":
-                user_input = ""
+            if keyboard in [b'\xe0', b'\x00']:
+                arrow = msvcrt.getch()
+                if arrow == b'M': user_input = ">"
+                elif arrow == b'K': user_input = "<"
+
+                else:
+                    user_input = None
             else:
-                user_input = keyboard
-        
+                try:
+                    user_input = keyboard.decode('utf-8', errors='ignore').lower()
+
+                    if user_input == "\r":
+                        user_input = ""
+                except:
+                    user_input = None
+            
         else:
             user_input = None
 
