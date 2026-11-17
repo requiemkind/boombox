@@ -5,6 +5,13 @@ The Boombox Project is a terminal-based, illustrative boombox that I created. Th
 * This project uses '[Just Playback](https://github.com/cheofusi/just_playback)', hence, make sure you're on Python 3.9 or newer.
 
 ## How to use it
+**For Users**
+- The `.exe` version requires you to have Windows and do the following:
+  Extract the `.zip` file anywhere on your computer.
+  Double-click `main.exe` to start the app.
+- Note: The public release does not include any songs. You must place your `.mp3` files inside the `songs` folder (located next to the `.exe`) to play them.
+
+**For Developers (Running from Source)**
 - Windows: Double-click `start.bat` to download requirements and start the app.
 - Linux/Mac: Run `pip install -r requirements.txt` and then `python main.py`.
 

@@ -1,3 +1,7 @@
-*
+# PyInstaller
+build/
+dist/
+*.spec
+*.exe
 resenha.py
 .venv/

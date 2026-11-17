@@ -1,8 +1,17 @@
 from just_playback import Playback
 from pathlib import Path
-import shutil, time, threading, queue, msvcrt, json, os
+import shutil, time, threading, queue, msvcrt, json, os, sys, ctypes
 
-files = Path(__file__).parent / 'songs'
+if getattr(sys, 'frozen', False):
+    base_path = Path(sys.executable).parent
+else:
+    base_path = Path(__file__).parent
+
+if os.name == 'nt':
+    kernel32 = ctypes.windll.kernel32
+    kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+
+files = base_path / 'songs'
 playback = Playback()
 play_queue = queue.Queue()
 
@@ -297,11 +306,14 @@ def skip_song(direction):
 def load_songs():
     global listed_songs_keys, listed_songs_files, custom_titles, total_songs
 
-    json_file = Path(__file__).parent / 'songs.json'
+    json_file = base_path / 'songs.json'
 
     if os.path.exists(json_file):
-        with open(json_file, 'r', encoding='utf-8') as file:
-            custom_titles = json.load(file)
+        try:
+            with open(json_file, 'r', encoding='utf-8') as file:
+                custom_titles = json.load(file)
+        except (json.JSONDecodeError, OSError):
+            custom_titles = {}
     else:
         custom_titles = {}
 
@@ -564,6 +576,7 @@ def start_boombox():
     total_songs = len(listed_songs_keys)
     if total_songs == 0:
         print("Empty Boombox! ('songs' folder is empty)")
+        time.sleep(5)
         os._exit(0)
 
     t_audio = threading.Thread(target=audio_thread, daemon=True)
@@ -578,6 +591,7 @@ def start_boombox():
     print("\033[H\033[J", end='') 
     if total_songs > 0:
         print("\nThank you for using Boombox Project. Hope you enjoyed it.") # :)
+        time.sleep(2)
 
 if __name__ == "__main__":
     start_boombox()
