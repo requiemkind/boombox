@@ -16,32 +16,30 @@ selected_index = 0
 current_volume = 0.1 # optimal (10%)
 scroll_pos = 5
 autoplay_interval = 1.5 # autoplay interval
+selected_option = 0
 
 playing_displayed = ""
 menu_duration_str = "0m 0s"
 
-# ASCII
-def clean_ascii():
-    return [line.rstrip() for line in boombox().strip("\n").splitlines()]
-
-
-def inject_status(art_lines):
-
-    autoplay_char = "●" if autoplay else "○"
-    volume_str = f"{int(current_volume * 100)}%".ljust(3)
-    art_lines[9] = art_lines[9].replace("○", autoplay_char)
-    art_lines[9] = art_lines[9].replace("10%", volume_str)
-    return art_lines
-
-
-def move_cursor():
-    center_col = (shutil.get_terminal_size().columns // 2) + 2
-    print(f"\033[10;{center_col}H", end="", flush=True)
-
-
-selected_option = 0
-
 # utilities functions
+def boombox():
+    return r"""    ___________________________________________
+   /                                           \
+  |  _________________________________________  |
+  | |  | | | | | | | | | | | | | | | | | | |  | |
+  | |  |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|  | |
+  | |_________________________________________| |
+  |                                             |
+  |  [ - ]      [ < ] [Enter] [ > ]      [ + ]  |
+  |                                             |
+  |    ○                                  10%   |
+  |                                             |
+  |                   [POWER]                   |
+  |_____________________________________________|
+         |                               |
+         |_______________________________|"""
+
+
 def center_alignment(txt):
     fullsize_x = shutil.get_terminal_size().columns
     txt_alignment = (fullsize_x - len(txt)) // 2
@@ -55,13 +53,6 @@ def ascii_alignment(txt):
     max_width = max(map(len, lines), default=0)
     alignment = max(0, (fullsize_x - max_width) // 2)
     return "\n".join(" " * alignment + line for line in lines)
-
-
-def vertical_alignment(txt):
-    fullsize_y = shutil.get_terminal_size().lines
-    lines = txt.splitlines()
-    txt_alignment = max(0, (fullsize_y - len(lines)) // 2)
-    return "\n" * txt_alignment + txt
 
 
 def get_songname(index):
@@ -103,9 +94,27 @@ def volume_bar(vol, width=20):
 
     return f"[{bar}] {int(vol * 100)}"
 
+
+def clean_ascii():
+    return [line.rstrip() for line in boombox().strip("\n").splitlines()]
+
+
+def ascii_buttons(art_lines):
+    autoplay_char = "●" if autoplay else "○"
+    volume_str = f"{int(current_volume * 100)}%".ljust(3)
+    art_lines[9] = art_lines[9].replace("○", autoplay_char)
+    art_lines[9] = art_lines[9].replace("10%", volume_str)
+    return art_lines
+
+
+def ascii_cursor_fix():
+    center_col = (shutil.get_terminal_size().columns // 2) + 2
+    print(f"\033[10;{center_col}H", end="", flush=True)
+
 # interface functions
 def choice_menu():
     global selected_option
+    print("\033[?25l", end='')
     print("\033[H\033[J\033[2J", end='')
     
     art_lines = clean_ascii()
@@ -123,7 +132,6 @@ def choice_menu():
     screen = "\n".join(art_lines[i] + "    " + selection_ui[i] for i in range(len(art_lines)))
     
     print(ascii_alignment(screen), end='')
-    time.sleep(0.05)
 
 
 def get_choice():
@@ -147,6 +155,8 @@ def get_choice():
                 elif char in ["w", ",", "<"]: selected_option = (selected_option - 1) % 2
                 elif char == "\r":
                     return "ascii" if selected_option == 0 else "legacy"
+        
+        time.sleep(0.1)
 
 
 def title_rolling(title): # 'Mobius strip' logic
@@ -216,8 +226,6 @@ def render_interface():
 
 
 def ascii_menu(menu_duration):
-    global selected_index, autoplay, current_volume
-
     art_lines = [line.rstrip() for line in boombox().strip("\n").splitlines()]
 
     song_title = listed_songs_keys[selected_index]
@@ -236,7 +244,7 @@ def ascii_menu(menu_duration):
     art_lines[4] = prefix + song_text[:content_width].center(content_width) + suffix
 
     autoplay_char = "●" if autoplay else "○"
-    volume_str = f"{int(current_volume * 100)}%"
+    volume_str = f"{int(current_volume * 100)}%".ljust(3)
     art_lines[9] = art_lines[9].replace("○", autoplay_char)
     art_lines[9] = art_lines[9].replace("10%", volume_str)
 
@@ -260,30 +268,12 @@ def ascii_active(time_str, rolling_text):
     art_lines[5] = prefix + time_str[:content_width].center(content_width) + suffix
     art_lines[6] = "  | |_________________________________________| |"
 
-    art_lines = inject_status(art_lines)
+    art_lines = ascii_buttons(art_lines)
     screen = "\n".join(art_lines)
 
     print("\033[H\033[J\033[3J", end='')
     print(ascii_alignment(screen), end='')
-    move_cursor()
-
-
-def boombox():
-    return r"""    ___________________________________________
-   /                                           \
-  |  _________________________________________  |
-  | |  | | | | | | | | | | | | | | | | | | |  | |
-  | |  |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|  | |
-  | |_________________________________________| |
-  |                                             |
-  |  [ - ]      [ < ] [Enter] [ > ]      [ + ]  |
-  |                                             |
-  |    ○                                  10%   |
-  |                                             |
-  |                   [POWER]                   |
-  |_____________________________________________|
-        |                               |
-        |_______________________________|"""
+    ascii_cursor_fix()
 
 # player logic functions
 def play_current_song():
@@ -513,7 +503,7 @@ def input_thread():
 
         process_input(user_input)
 
-# main
+# loops
 def legacy_loop():
     global boombox_shutdown
 
@@ -534,7 +524,7 @@ def legacy_loop():
 
 
 def ascii_loop():
-    global boombox_shutdown, selected_index, menu_duration_str, isplaying
+    global boombox_shutdown
 
     try:
         while not boombox_shutdown:
@@ -556,30 +546,38 @@ def main_loop():
 
     t_input = threading.Thread(target=input_thread, daemon=True)
     t_input.start()
-    
+
+    print("\033[?25h") # cursor reappearance
     if mode == "ascii":
         ascii_loop()
     else:
         legacy_loop()
 
+    t_input.join()
+
 # program execution part
-load_songs()
+def start_boombox():
+    global total_songs, listed_songs_keys, listed_songs_files
+    
+    load_songs()
 
-total_songs = len(listed_songs_keys)
-if total_songs == 0:
-    print("Empty Boombox! ('songs' folder is empty)")
-    os._exit(0)
+    total_songs = len(listed_songs_keys)
+    if total_songs == 0:
+        print("Empty Boombox! ('songs' folder is empty)")
+        os._exit(0)
 
-t_input = threading.Thread(target=input_thread, daemon=True)
-t_audio = threading.Thread(target=audio_thread, daemon=True)
-t_audio.start()
+    t_audio = threading.Thread(target=audio_thread, daemon=True)
+    t_audio.start()
 
-load_menu_song()
-main_loop()
+    load_menu_song()
+    main_loop()
 
-play_queue.put(("STOP", None))
-t_audio.join()
+    play_queue.put(("STOP", None))
+    t_audio.join()
 
-print("\033[H\033[J", end='') 
-if total_songs > 0:
-    print("\nThank you for using Boombox Project. Hope you enjoyed it.") # :)
+    print("\033[H\033[J", end='') 
+    if total_songs > 0:
+        print("\nThank you for using Boombox Project. Hope you enjoyed it.") # :)
+
+if __name__ == "__main__":
+    start_boombox()
