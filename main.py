@@ -357,9 +357,9 @@ def process_input(user_input):
             adjust_volume(1, 0.1)
         elif user_input == "-":
             adjust_volume(-1, 0.1)
-        elif user_input == "[":
-            adjust_volume(1, 0.01)
         elif user_input == "]":
+            adjust_volume(1, 0.01)
+        elif user_input == "[":
             adjust_volume(-1, 0.01)
     
     elif user_input in ["y", "n"]:

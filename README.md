@@ -6,7 +6,7 @@ The Boombox Project is a terminal-based, illustrative boombox that I created. Th
 
 ## How to use it
 **For Users**
-- The `.exe` version requires you to have Windows and do the following:
+- The `.exe` version, if you're on Windows, do the following:
   Extract the `.zip` file anywhere on your computer.
   Double-click `main.exe` to start the app.
 - Note: The public release does not include any songs. You must place your `.mp3` files inside the `songs` folder (located next to the `.exe`) to play them.
