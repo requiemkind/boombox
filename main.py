@@ -1,11 +1,9 @@
 from just_playback import Playback
 from pathlib import Path
+from wcwidth import wcswidth
 import shutil, time, threading, queue, msvcrt, json, os, sys, ctypes
 
-if getattr(sys, 'frozen', False):
-    base_path = Path(sys.executable).parent
-else:
-    base_path = Path(__file__).parent
+base_path = Path(__file__).parent.parent if not getattr(sys, 'frozen', False) else Path(sys.executable).parent
 
 if os.name == 'nt':
     kernel32 = ctypes.windll.kernel32
@@ -51,7 +49,7 @@ def boombox():
 
 def center_alignment(txt):
     fullsize_x = shutil.get_terminal_size().columns
-    txt_alignment = (fullsize_x - len(txt)) // 2
+    txt_alignment = (fullsize_x - wcswidth(txt)) // 2
     txt = " " * txt_alignment + txt
     return txt
 
@@ -59,9 +57,13 @@ def center_alignment(txt):
 def ascii_alignment(txt):
     fullsize_x = shutil.get_terminal_size().columns
     lines = txt.splitlines()
-    max_width = max(map(len, lines), default=0)
+    max_width = max((wcswidth(line) for line in lines), default=0)
     alignment = max(0, (fullsize_x - max_width) // 2)
     return "\n".join(" " * alignment + line for line in lines)
+
+
+def visual_center(txt, width): # for different character widths
+    return txt.center(width - (wcswidth(txt) - len(txt)))
 
 
 def get_songname(index):
@@ -110,9 +112,9 @@ def clean_ascii():
 
 def ascii_buttons(art_lines):
     autoplay_char = "●" if autoplay else "○"
-    volume_str = f"{int(current_volume * 100)}%".ljust(3)
+    volume_str = f"{int((current_volume * 100) + 0.01)}%".rjust(4)
     art_lines[9] = art_lines[9].replace("○", autoplay_char)
-    art_lines[9] = art_lines[9].replace("10%", volume_str)
+    art_lines[9] = art_lines[9].replace(" 10%", volume_str)
     return art_lines
 
 
@@ -170,8 +172,10 @@ def get_choice():
 
 def title_rolling(title): # 'Mobius strip' logic
     global scroll_pos
+
     title_rolling = ("     " + title + "     " + title)[scroll_pos : scroll_pos+14]
-    scroll_pos = (scroll_pos + 1) % (len(title) + 5)
+    scroll_pos = (scroll_pos + 1) % (wcswidth(title) + 5)
+
     return title_rolling
 
 
@@ -239,8 +243,10 @@ def ascii_menu(menu_duration):
 
     song_title = listed_songs_keys[selected_index]
     number = f"{selected_index + 1}."
-    if len(song_title) > 14:
-        song_title = song_title[:11] + "..."
+    if wcswidth(song_title) > 14:
+        while wcswidth(song_title + "...") > 14:
+            song_title = song_title[:-1]
+        song_title += "..."
         
     song_text = f"{number} {song_title}  [{menu_duration}]"
     select_text = f"Select your track ({total_songs}):"
@@ -249,13 +255,13 @@ def ascii_menu(menu_duration):
     suffix = " | |"
     content_width = len(art_lines[3]) - len(prefix) - len(suffix)
 
-    art_lines[3] = prefix + select_text[:content_width].center(content_width) + suffix
-    art_lines[4] = prefix + song_text[:content_width].center(content_width) + suffix
+    art_lines[3] = prefix + visual_center(select_text, content_width) + suffix
+    art_lines[4] = prefix + visual_center(song_text, content_width) + suffix
 
     autoplay_char = "●" if autoplay else "○"
-    volume_str = f"{int(current_volume * 100)}%".ljust(3)
+    volume_str = f"{int((current_volume * 100) + 0.01)}%".rjust(4)
     art_lines[9] = art_lines[9].replace("○", autoplay_char)
-    art_lines[9] = art_lines[9].replace("10%", volume_str)
+    art_lines[9] = art_lines[9].replace(" 10%", volume_str)
 
     screen = "\n".join(art_lines)
     print("\033[H\033[J\033[3J", end='')
@@ -273,7 +279,7 @@ def ascii_active(time_str, rolling_text):
     content_width = len(art_lines[3]) - len(prefix) - len(suffix)
 
     art_lines[3] = prefix + "Now playing:".center(content_width) + suffix
-    art_lines[4] = prefix + rolling_text[:content_width].center(content_width) + suffix
+    art_lines[4] = prefix + visual_center(rolling_text, content_width) + suffix
     art_lines[5] = prefix + time_str[:content_width].center(content_width) + suffix
     art_lines[6] = "  | |_________________________________________| |"
 
@@ -352,10 +358,10 @@ def change_autoplay(state):
 def process_input(user_input):
     global isplaying
 
-    if user_input in ["+", "=", "-", "[", "]"]:
-        if user_input in ["+", "="]:
+    if user_input in ["+", "=", "-", "[", "]", "up", "down"]:
+        if user_input in ["+", "=", "up"]:
             adjust_volume(1, 0.1)
-        elif user_input == "-":
+        elif user_input in ["-", "down"]:
             adjust_volume(-1, 0.1)
         elif user_input == "]":
             adjust_volume(1, 0.01)
@@ -489,6 +495,8 @@ def input_thread():
                 arrow = msvcrt.getch()
                 if arrow == b'M': user_input = ">"
                 elif arrow == b'K': user_input = "<"
+                elif arrow == b'H': user_input = "up"
+                elif arrow == b'P': user_input = "down"
 
                 else:
                     user_input = None

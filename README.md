@@ -6,9 +6,9 @@ The Boombox Project is a terminal-based, illustrative boombox that I created. Th
 
 ## How to use it
 **For Users**
-- The `.exe` version, if you're on Windows, do the following:
-  Extract the `.zip` file anywhere on your computer.
-  Double-click `main.exe` to start the app.
+- The `.exe` version, is **Windows only**, do the following:
+  1. Extract the `.zip` file anywhere on your computer.
+  2. Double-click `main.exe` to start the app.
 - Note: The public release does not include any songs. You must place your `.mp3` files inside the `songs` folder (located next to the `.exe`) to play them.
 
 **For Developers (Running from Source)**
@@ -23,11 +23,11 @@ When you start the Boombox, you can choose between two interfaces:
 Use Up and Down keys + enter to choose which Boombox version you want.
 
 ## Controls
-- Enter: Play songs. If a song is already playing, it pauses.
-- "<", ">" (or "," , ".", arrow keys to said direction also works): Switches the currently displayed song. If a song is playing, immediately starts the next song.
-- "+" (or "="), "[", "-", "]": Increase/Decrease volume by 10% and 1% respectively.
-- "y" to enable autoplay ('False' by default), and "n" for turning off.
-- "s" to turn the boombox off.
+- `Enter`: Play songs. If a song is already playing, it pauses.
+- `<`, `>` (or `,` , `.`, and Left/Right arrow keys): Switches the currently displayed song. If a song is playing, immediately starts the next song.
+- `+` (or `=`), `[`, `-`, `]` (or Up/Down arrow keys): Increase/Decrease volume by 10% and 1% respectively.
+- `y` to enable autoplay (`False` by default), and `n` for turning off.
+- `s` to turn the boombox off.
 
 ## Adding your own music
 Ways to download the mp3's:
