@@ -3,5 +3,7 @@ build/
 dist/
 *.spec
 *.exe
-resenha.py
+fullcode.py
+__pycache__/
+*.pyc
 .venv/
