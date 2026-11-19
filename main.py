@@ -3,7 +3,7 @@ from pathlib import Path
 from wcwidth import wcswidth
 import shutil, time, threading, queue, msvcrt, json, os, sys, ctypes
 
-base_path = Path(__file__).parent.parent if not getattr(sys, 'frozen', False) else Path(sys.executable).parent
+base_path = Path(__file__).parent if not getattr(sys, 'frozen', False) else Path(sys.executable).parent
 
 if os.name == 'nt':
     kernel32 = ctypes.windll.kernel32
@@ -39,7 +39,7 @@ def boombox():
   |                                             |
   |  [ - ]      [ < ] [Enter] [ > ]      [ + ]  |
   |                                             |
-  |    ○                                  10%   |
+  |    o                                  10%   |
   |                                             |
   |                   [POWER]                   |
   |_____________________________________________|
@@ -111,15 +111,22 @@ def clean_ascii():
 
 
 def ascii_buttons(art_lines):
-    autoplay_char = "●" if autoplay else "○"
-    volume_str = f"{int((current_volume * 100) + 0.01)}%".rjust(4)
-    art_lines[9] = art_lines[9].replace("○", autoplay_char)
+    autoplay_char = "@" if autoplay else "o"
+    volume_str = f"{int((current_volume * 100) + 0.01):>3}%"
+    art_lines[9] = art_lines[9].replace("o", autoplay_char)
     art_lines[9] = art_lines[9].replace(" 10%", volume_str)
     return art_lines
 
 
-def ascii_cursor_fix():
-    center_col = (shutil.get_terminal_size().columns // 2) + 2
+def ascii_cursor_fix(art_lines):
+    terminal_width = shutil.get_terminal_size().columns
+    art_width = max(wcswidth(line) for line in art_lines)
+    alignment = max(0, (terminal_width - art_width) // 2)
+
+    control_line = art_lines[7]
+    target_index = control_line.index("[Enter]") + 3
+    center_col = alignment + target_index + 1
+
     print(f"\033[10;{center_col}H", end="", flush=True)
 
 # interface functions
@@ -258,22 +265,20 @@ def ascii_menu(menu_duration):
     art_lines[3] = prefix + visual_center(select_text, content_width) + suffix
     art_lines[4] = prefix + visual_center(song_text, content_width) + suffix
 
-    autoplay_char = "●" if autoplay else "○"
-    volume_str = f"{int((current_volume * 100) + 0.01)}%".rjust(4)
-    art_lines[9] = art_lines[9].replace("○", autoplay_char)
+    autoplay_char = "@" if autoplay else "o"
+    volume_str = f"{int((current_volume * 100) + 0.01):>3}%"
+    art_lines[9] = art_lines[9].replace("o", autoplay_char)
     art_lines[9] = art_lines[9].replace(" 10%", volume_str)
 
     screen = "\n".join(art_lines)
     print("\033[H\033[J\033[3J", end='')
     print(ascii_alignment(screen), end='')
 
-    center_col = (shutil.get_terminal_size().columns // 2) + 2
-    print(f"\033[10;{center_col}H", end="", flush=True)
+    ascii_cursor_fix(art_lines)
 
 
 def ascii_active(time_str, rolling_text):
     art_lines = clean_ascii()
-
     prefix = "  | | "
     suffix = " | |"
     content_width = len(art_lines[3]) - len(prefix) - len(suffix)
@@ -288,7 +293,7 @@ def ascii_active(time_str, rolling_text):
 
     print("\033[H\033[J\033[3J", end='')
     print(ascii_alignment(screen), end='')
-    ascii_cursor_fix()
+    ascii_cursor_fix(art_lines)
 
 # player logic functions
 def play_current_song():
@@ -317,14 +322,14 @@ def load_songs():
     if os.path.exists(json_file):
         try:
             with open(json_file, 'r', encoding='utf-8') as file:
-                custom_titles = json.load(file)
+                loaded_titles = json.load(file)
+                custom_titles = loaded_titles if isinstance(loaded_titles, dict) else {} # ensures json is a dictionary
         except (json.JSONDecodeError, OSError):
             custom_titles = {}
     else:
         custom_titles = {}
 
     song_files = sorted(files.glob('*.mp3'))
-
 
     listed_songs_keys = []
     listed_songs_files = []
