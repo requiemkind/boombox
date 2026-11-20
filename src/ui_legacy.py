@@ -39,6 +39,23 @@ def boombox_active(time_str, rolling_text, ispaused, volume, progress):
     return active_design
 
 
+def volume_bar(vol, width=20):
+    total_subblocks = int(vol * width * 8)
+    full_blocks = total_subblocks // 8
+    partial_blocks = total_subblocks % 8
+
+    sub_chars = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"]
+    bar = "█" * full_blocks
+
+    if partial_blocks > 0 and full_blocks < width:
+        bar += sub_chars[partial_blocks]
+
+    empty_blocks = width - len(bar)
+    bar += "░" * empty_blocks
+
+    return f"[{bar}] {int((vol * 100) + 0.01)}"
+
+
 def update_legacy_metrics():
     current_time = max(0, config.playback.curr_pos)
     total_time = config.playback.duration
@@ -70,7 +87,7 @@ def legacy_loop():
     try:
         while not config.boombox_shutdown:
             print("\033[H\033[J\033[3J", end='')
-            time_str, progress, roll_txt, volume = update_legacy_metrics()
+            time_str, _, roll_txt, _ = update_legacy_metrics()
             render_interface(time_str, roll_txt)
             print("\033[u", end='', flush=True)
             time.sleep(0.1 if not config.isplaying else 0.5)

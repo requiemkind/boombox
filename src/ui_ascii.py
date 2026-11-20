@@ -4,6 +4,28 @@ import src.config as config
 from src import player
 from src.utils import *
 
+def boombox():
+    return r"""    ___________________________________________
+   /                                           \
+  |  _________________________________________  |
+  | |  | | | | | | | | | | | | | | | | | | |  | |
+  | |  |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|  | |
+  | |_________________________________________| |
+  |                                             |
+  |  [ - ]      [ < ] [Enter] [ > ]      [ + ]  |
+  |                                             |
+  |    o                                  10%   |
+  |                                             |
+  |                   [POWER]                   |
+  |_____________________________________________|
+         |                               |
+         |_______________________________|"""
+
+
+def clean_ascii():
+    return [line.rstrip() for line in boombox().strip("\n").splitlines()]
+
+
 def ascii_buttons(art_lines):
     autoplay_char = "@" if config.autoplay else "o"
     volume_str = f"{int((config.current_volume * 100) + 0.01):>3}%"

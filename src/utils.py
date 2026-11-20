@@ -1,23 +1,6 @@
 from wcwidth import wcswidth
+import src.config as config
 import shutil
-
-def boombox():
-    return r"""    ___________________________________________
-   /                                           \
-  |  _________________________________________  |
-  | |  | | | | | | | | | | | | | | | | | | |  | |
-  | |  |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|  | |
-  | |_________________________________________| |
-  |                                             |
-  |  [ - ]      [ < ] [Enter] [ > ]      [ + ]  |
-  |                                             |
-  |    o                                  10%   |
-  |                                             |
-  |                   [POWER]                   |
-  |_____________________________________________|
-         |                               |
-         |_______________________________|"""
-
 
 def center_alignment(txt):
     fullsize_x = shutil.get_terminal_size().columns
@@ -38,10 +21,6 @@ def visual_center(txt, width): # for different character widths
     return txt.center(width - (wcswidth(txt) - len(txt)))
 
 
-def clean_ascii():
-    return [line.rstrip() for line in boombox().strip("\n").splitlines()]
-
-
 def format_time(seconds, total_seconds=None):
     # boombox_menu()
     if total_seconds is None:
@@ -59,23 +38,6 @@ def progress_bar(current, total, width=20):
     song_length = "━" * pos + "●" + "─" * (width - 1 - pos)
 
     return f"[{song_length}]"   
-
-
-def volume_bar(vol, width=20):
-    total_subblocks = int(vol * width * 8)
-    full_blocks = total_subblocks // 8
-    partial_blocks = total_subblocks % 8
-
-    sub_chars = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"]
-    bar = "█" * full_blocks
-
-    if partial_blocks > 0 and full_blocks < width:
-        bar += sub_chars[partial_blocks]
-
-    empty_blocks = width - len(bar)
-    bar += "░" * empty_blocks
-
-    return f"[{bar}] {int((vol * 100) + 0.01)}"
 
 
 def title_rolling(title, scroll_pos): # 'Mobius strip' logic

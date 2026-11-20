@@ -38,3 +38,5 @@ Ways to download the mp3's:
 The `songs` folder will be empty for you to add your own tracks.
 Just add your .mp3 files to the `songs` folder and update the `songs.json` file for custom display names.
 - To add custom titles for songs in the json file, follow the order: `{"(songfilename).mp3": "(song name display)"}`. *'Author - Song' or vice versa is not mandatory in the 'display name' part.*
+
+- Note on Antivirus Alerts: **If Windows Defender or other antivirus software flags main.exe as a possible threat (e.g., Trojan or Virus), this is a known false positive caused by the PyInstaller packaging process. Again: the code is completely open-source, and you can review it in this repository.**

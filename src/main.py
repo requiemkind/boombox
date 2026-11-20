@@ -6,7 +6,8 @@ import src.config as config
 from src import player
 from src import ui_ascii
 from src import ui_legacy
-from src.utils import clean_ascii, ascii_alignment
+from src.utils import ascii_alignment
+from src.ui_ascii import clean_ascii
 
 def choice_menu():
     print("\033[?25l\033[H\033[J\033[2J", end='')
